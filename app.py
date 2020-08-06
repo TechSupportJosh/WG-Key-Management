@@ -19,7 +19,6 @@ if app.config.get("SECRET_KEY", None) is None:
     app.config["SECRET_KEY"] = os.urandom(32).hex()
 
 # Initialise database
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/test.db"
 db = SQLAlchemy(app)
 
 # Import models after db has been initialised

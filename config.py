@@ -11,6 +11,9 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 TWITTER_CLIENT_ID = os.getenv('TWITTER_CLIENT_ID')
 TWITTER_CLIENT_SECRET = os.getenv('TWITTER_CLIENT_SECRET')
 
+# Database URI
+SQLALCHEMY_DATABASE_URI = "sqlite:///tmp/test.db"
+
 # Maximum keys a user may have
 WIREGUARD_MAX_KEYS = 5
 
