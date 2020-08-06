@@ -241,6 +241,11 @@ def auth(name):
         flash("This account does not exist. Please contact XYZ if you believe this is a mistake.", "danger")
         return redirect(url_for("login_page"))
 
+    # Check whether the user's account is locked, in which case deny them and display an error message.
+    if db_user.locked:
+        flash("This account has been locked. Please contact XYZ if you believe this is a mistake.", "danger")
+        return redirect(url_for("login_page"))
+        
     # Update user with database parameters
     session_user["id"] = db_user.user_id
     session_user["is_admin"] = db_user.administrator

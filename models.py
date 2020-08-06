@@ -29,11 +29,15 @@ class User(db.Model):
     # Store if user is an administrator
     administrator = Column(Boolean, default=False)
     
-    def __init__(self, unique_id, name, auth_type, administrator=False):
+    # If the account is locked, the user will not be able to log in
+    locked = Column(Boolean, default=False)
+
+    def __init__(self, unique_id, name, auth_type, administrator=False, locked=False):
         self.unique_id = unique_id
         self.name = name
         self.auth_type = auth_type
         self.administrator = administrator
+        self.locked = True
 
 
 class KeyEntry(db.Model):
