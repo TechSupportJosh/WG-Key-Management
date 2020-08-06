@@ -17,6 +17,16 @@
 	</head>
 
 	<body class="text-center">
+		<!-- These lines just get flashed messages and render them at the top of the page -->
+		<!-- This means error messages can be created and displayed using the flash() function -->
+		{% with messages = get_flashed_messages(with_categories=true) %}
+			{% if messages %}
+				{% for category, message in messages %}
+					<div class="alert alert-{{category}}">{{ message }}</div>
+				{% endfor %}
+			{% endif %}
+		{% endwith %}
+	  
 		<div class="signin-container">
 			<img class="mb-4" src="https://getbootstrap.com/assets/brand/bootstrap-solid.svg" alt="" width="72" height="72">
 			<h1 class="h3 mb-3 font-weight-normal">Please sign in</h1>

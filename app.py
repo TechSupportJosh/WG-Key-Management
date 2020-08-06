@@ -1,5 +1,5 @@
 from flask import Flask, url_for, session, request
-from flask import render_template, redirect, abort, url_for, flash
+from flask import render_template, redirect, abort, url_for, flash, Markup
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_
@@ -58,7 +58,7 @@ def home_page():
     # If the user is logged in, display the home page
     if user:
         # Retrieve the keys for this user
-        keys = KeyEntry.query.filter(User.unique_id == user["email"]).all()
+        keys = KeyEntry.query.filter(KeyEntry.key_owner == user["unique_id"]).all()
         
         return render_template("home.html", user=user, keys=keys, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
     else:
@@ -121,7 +121,8 @@ def add_key_page():
         # Now check whether any errors were raised above
         if len(errors):
             # Print error and return to the add key page
-            flash("An error occured when trying to add this key: \n{}".format("\n".join(errors)), "danger")
+            # Use Markup() here to make the <br> appear as actual tags
+            flash(Markup("An error occured when trying to add this key: <br>{}".format("<br>".join(errors))), "danger")
             return redirect(url_for("add_key_page"))
 
         # Convert expiry date to a UTC timestamp
@@ -217,6 +218,15 @@ def auth(name):
     # Add our unique ID to the user token
     # TODO: For different identity providers, the unique_id will be different
     user["unique_id"] = user["email"]
+
+    # Now check whether this unique_id exists in the user table
+    db_user = User.query.filter(User.unique_id == user["unique_id"]).first()
+    
+    # If this user doesn't exist, then error out early. Only users that exist in the Users table should
+    # be allowed to get past the login screen.
+    if db_user is None:
+        flash("This account does not exist. Please contact XYZ if you believe this is a mistake.", "danger")
+        return redirect(url_for("login_page"))
 
     # Update our session token with this user
     session["user"] = user
