@@ -25,6 +25,9 @@
         </div>
         <div class="col-2">
           <a href="/logout" class="btn btn-primary">Logout</a>
+          {% if user.is_admin %}
+            <a href="/admin" class="btn btn-primary">Admin</a>
+          {% endif %}
         </div>
       </div>
       <!-- These lines just get flashed messages and render them at the top of the page -->

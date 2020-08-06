@@ -14,8 +14,14 @@ def utc_to_local(utc_dt):
 
 class User(db.Model):
     __tablename__= "users"
+    
+    user_id = Column(Integer, primary_key=True, autoincrement=True)
+
     # Unique identifer from oauth logins
-    unique_id = Column(String(320), primary_key=True)
+    unique_id = Column(String(320))
+
+    # Identifiable name of the user
+    name = Column(String(80))
 
     # Oauth type (Google, Twitter, etc.)
     auth_type = Column(String(16))
@@ -23,9 +29,12 @@ class User(db.Model):
     # Store if user is an administrator
     administrator = Column(Boolean, default=False)
     
-    def __init__(self, unique_id, auth_type):
+    def __init__(self, unique_id, name, auth_type, administrator=False):
         self.unique_id = unique_id
+        self.name = name
         self.auth_type = auth_type
+        self.administrator = administrator
+
 
 class KeyEntry(db.Model):
     __tablename__ = "keys"
@@ -37,7 +46,7 @@ class KeyEntry(db.Model):
     public_key = Column(String(44), unique=True)
 
     # Owner of this key
-    key_owner = Column(String(320), ForeignKey("users.unique_id"))
+    key_owner = Column(String(320), ForeignKey("users.user_id"))
 
     # Name of the key that the user gives it, for example HOME-PC, Work Laptop etc.
     readable_name = Column(String(32))

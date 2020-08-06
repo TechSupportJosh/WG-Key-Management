@@ -39,6 +39,10 @@ oauth.register(
     }
 )
 
+# Register blueprints
+from admin import admin
+app.register_blueprint(admin)
+
 # The index page consists of the login screen
 @app.route("/")
 def login_page():
@@ -58,10 +62,12 @@ def home_page():
     # If the user is logged in, display the home page
     if user:
         # Retrieve the keys for this user
-        keys = KeyEntry.query.filter(KeyEntry.key_owner == user["unique_id"]).all()
+        keys = KeyEntry.query.filter(KeyEntry.key_owner == user["id"]).all()
         
         return render_template("home.html", user=user, keys=keys, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
     else:
+        flash("You must be logged in to access this page.", "danger")
+
         # Otherwise, redirect to the login page
         return redirect(url_for("login_page"))
 
@@ -71,6 +77,8 @@ def add_key_page():
 
     # Check whether the user is logged in
     if not user:
+        flash("You must be logged in to access this page.", "danger")
+
         # Redirect to the login page
         return redirect(url_for("login_page"))
 
@@ -129,7 +137,7 @@ def add_key_page():
         expiry_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=expiry_time_seconds)
         
         # Everything is good, add the key to the database
-        key_entry = KeyEntry(public_key, user["unique_id"], readable_name, expiry_date)
+        key_entry = KeyEntry(public_key, user["id"], readable_name, expiry_date)
         db.session.add(key_entry)
         db.session.commit()
 
@@ -144,11 +152,13 @@ def revoke_key_page(key_id):
 
     # Check whether the user is logged in
     if not user:
+        flash("You must be logged in to access this page.", "danger")
+
         # Redirect to the login page
         return redirect(url_for("login_page"))
 
     # Check whether the key entered exists
-    key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == user["unique_id"])).first()
+    key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == user["id"])).first()
 
     if key_entry is None:
         # Display error message and return to home page
@@ -164,7 +174,7 @@ def revoke_key_page(key_id):
         key_id = request.form.get("key_id", 0)
 
         # Check whether the key entered exists
-        key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == user["unique_id"])).first()
+        key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == user["id"])).first()
 
         if key_entry is None:
             # Display error message and return to home page
@@ -215,12 +225,15 @@ def auth(name):
         # Otherwise retrieve our user info via client.userinfo()
         user = client.userinfo()
     
-    # Add our unique ID to the user token
+    # Rather than storing all the information from the oauth inside the session, just store essential information
     # TODO: For different identity providers, the unique_id will be different
-    user["unique_id"] = user["email"]
+    session_user = {
+        "name": user["name"],
+        "unique_id": user["email"]
+    }
 
     # Now check whether this unique_id exists in the user table
-    db_user = User.query.filter(User.unique_id == user["unique_id"]).first()
+    db_user = User.query.filter(User.unique_id == session_user["unique_id"]).first()
     
     # If this user doesn't exist, then error out early. Only users that exist in the Users table should
     # be allowed to get past the login screen.
@@ -228,8 +241,12 @@ def auth(name):
         flash("This account does not exist. Please contact XYZ if you believe this is a mistake.", "danger")
         return redirect(url_for("login_page"))
 
+    # Update user with database parameters
+    session_user["id"] = db_user.user_id
+    session_user["is_admin"] = db_user.administrator
+
     # Update our session token with this user
-    session["user"] = user
+    session["user"] = session_user
 
     # Once we've been authorised, redirect to our home page
     return redirect(url_for("home_page"))
