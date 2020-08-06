@@ -10,3 +10,6 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 # Twitter OAuth client details
 TWITTER_CLIENT_ID = os.getenv('TWITTER_CLIENT_ID')
 TWITTER_CLIENT_SECRET = os.getenv('TWITTER_CLIENT_SECRET')
+
+# Maximum keys a user may have
+WIREGUARD_MAX_KEYS = 5

@@ -3,6 +3,8 @@ from flask import render_template, redirect, abort, url_for
 from authlib.integrations.flask_client import OAuth
 
 import os
+import datetime
+import pytz
 
 # Initialise flask application
 app = Flask(__name__)
@@ -26,6 +28,12 @@ oauth.register(
     }
 )
 
+# https://stackoverflow.com/a/13287083
+def utc_to_local(utc_dt):
+    local_tz = pytz.timezone("Europe/London")
+    local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
+    return local_tz.normalize(local_dt) # .normalize might be unnecessary
+
 # The index page consists of the login screen
 @app.route("/")
 def login_page():
@@ -44,10 +52,20 @@ def home_page():
 
     # If the user is logged in, display the home page
     if user:
-        return render_template("home.html", user=user)
+        # Retrieve the keys for this user
+        # TODO: Retrieve keys from the database
+
+        keys = [{
+            "readable_name": "HOME-PC",
+            "public_key": "EXAMPLEKEY_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "expiry_date": utc_to_local(datetime.datetime.utcnow()).strftime("%c")
+        }]
+
+        print(keys)
+        return render_template("home.html", user=user, keys=keys, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
     else:
         # Otherwise, redirect to the login page
-        return redirect(route_for("login_page"))
+        return redirect(url_for("login_page"))
 
 @app.route("/login/<name>")
 def login(name):

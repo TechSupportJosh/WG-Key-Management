@@ -12,13 +12,43 @@
     <!-- Bootstrap core CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 
+		<!-- Custom styles for this template -->
+		<link href="/static/css/home.css" rel="stylesheet">
   </head>
 
   <body>
     <div class="container">
 
-      <h1>Bootstrap grid examples</h1>
+      <h1>Homepage</h1>
+      <h2>Your Public Keys</h2>
+      <div class="mb-2">
+        {% if keys|length >= WIREGUARD_MAX_KEYS %}
+          <a href="#" class="btn btn-primary" disabled="disabled">Add New Key</a>
+        {% else %}
+          <a href="/add_key" class="btn btn-primary">Add New Key</a>
+        {% endif %}
+        <span class="ml-2 text-muted">You can only have {{WIREGUARD_MAX_KEYS}} set up at a time.</span>
+      </div>
 
+      <ul class="list-group">
+        {% for key in keys %}
+          <li class="list-group-item">
+            <div class="row">
+              <div class="col-9">
+                <h5><strong>{{key["readable_name"]}}</strong></h5>
+                <p class="mb-0">Key: {{key["public_key"]}}<br>
+                  Expiry Date: {{key["expiry_date"]}}
+                </p>
+              </div>
+              <div class="col-3 d-flex align-items-center justify-content-center">
+                <div>
+                  <a class="btn btn-danger" href="/revoke_key/{{key['public_key']}}">Revoke Access</a>
+                </div>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
     </div> <!-- /container -->
   </body>
 </html>
