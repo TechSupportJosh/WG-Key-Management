@@ -17,7 +17,7 @@ class User(db.Model):
     # Unique identifer from oauth logins
     unique_id = Column(String(320), primary_key=True)
 
-    # Oauth type (Warwick, Google, Twitter, etc.)
+    # Oauth type (Google, Twitter, etc.)
     auth_type = Column(String(16))
 
     # Store if user is an administrator
