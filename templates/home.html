@@ -35,14 +35,19 @@
           <li class="list-group-item">
             <div class="row">
               <div class="col-9">
-                <h5><strong>{{key["readable_name"]}}</strong></h5>
-                <p class="mb-0">Key: {{key["public_key"]}}<br>
-                  Expiry Date: {{key["expiry_date"]}}
+                <h5>
+                  <strong>{{key.readable_name}}</strong>
+                  {% if key.is_expired() %}
+                    <span style="color: red;">(EXPIRED)</span>
+                  {% endif %}
+                </h5>
+                <p class="mb-0">Key: {{key.public_key}}<br>
+                  Expiry Date: {{key.expiry_date_string()}}
                 </p>
               </div>
               <div class="col-3 d-flex align-items-center justify-content-center">
                 <div>
-                  <a class="btn btn-danger" href="/revoke_key/{{key['public_key']}}">Revoke Access</a>
+                  <a class="btn btn-danger" href="/revoke_key/{{key.public_key}}">Revoke Access</a>
                 </div>
               </div>
             </div>

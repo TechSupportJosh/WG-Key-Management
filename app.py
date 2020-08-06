@@ -1,10 +1,11 @@
-from flask import Flask, url_for, session
+from flask import Flask, url_for, session, request
 from flask import render_template, redirect, abort, url_for
 from authlib.integrations.flask_client import OAuth
+from flask_sqlalchemy import SQLAlchemy
 
 import os
 import datetime
-import pytz
+import re
 
 # Initialise flask application
 app = Flask(__name__)
@@ -15,6 +16,16 @@ app.config.from_object("config")
 if app.config.get("SECRET_KEY", None) is None:
     print("[Warning] No secret key has been passed. A random one will be generated for this instance.")
     app.config["SECRET_KEY"] = os.urandom(32).hex()
+
+# Initialise database
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/test.db"
+db = SQLAlchemy(app)
+
+# Import models after db has been initialised
+from models import User, KeyEntry
+
+# Create tables in DB - done after the models have been imported
+db.create_all()
 
 # Initialise oauth for our flask application
 oauth = OAuth(app)
@@ -27,12 +38,6 @@ oauth.register(
         "scope": "openid email profile"
     }
 )
-
-# https://stackoverflow.com/a/13287083
-def utc_to_local(utc_dt):
-    local_tz = pytz.timezone("Europe/London")
-    local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
-    return local_tz.normalize(local_dt) # .normalize might be unnecessary
 
 # The index page consists of the login screen
 @app.route("/")
@@ -53,19 +58,82 @@ def home_page():
     # If the user is logged in, display the home page
     if user:
         # Retrieve the keys for this user
-        # TODO: Retrieve keys from the database
-
-        keys = [{
-            "readable_name": "HOME-PC",
-            "public_key": "EXAMPLEKEY_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-            "expiry_date": utc_to_local(datetime.datetime.utcnow()).strftime("%c")
-        }]
-
-        print(keys)
+        keys = KeyEntry.query.filter(User.unique_id == user["email"]).all()
+        
         return render_template("home.html", user=user, keys=keys, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
     else:
         # Otherwise, redirect to the login page
         return redirect(url_for("login_page"))
+
+@app.route("/add_key", methods=["GET", "POST"])
+def add_key_page():
+    user = session.get("user")
+
+    # Check whether the user is logged in
+    if not user:
+        # Redirect to the login page
+        return redirect(url_for("login_page"))
+
+    # If the request is GET, return the form to add a new key
+    if request.method == "GET":
+        return render_template("add_key.html", expiry_times=app.config["EXPIRY_TIMES"])
+    else:
+        # Otherwise process adding a new key
+        # Errors contains a list of errors that will be displayed if the request goes wrong
+        errors = []
+
+        # Firstly validate that all the parameters are correct
+        # Validate public key
+        public_key = request.form.get("public_key", "")
+        if not re.match(r"^[0-9a-zA-Z\+\/]{43}=$", public_key):
+            errors.append("Public key is not of the expected format (44 character long base64 string)")
+        
+        # Validate readable name
+        readable_name = request.form.get("readable_name", "")
+        if len(readable_name) > 32 or not len(readable_name):
+            errors.append("Key name must be between 1 and 32 characters long.")
+        
+        # Validate expiry time
+        expiry_time_seconds = request.form.get("expiry_time", "0")
+        try:
+            expiry_time_seconds = int(expiry_time_seconds)
+        except ValueError:
+            # Failed to convert to integer, add error
+            # This will only happen if the user modifies the webpage/request
+            errors.append("Expiry time must be one of the options listed.")
+        else:
+            # If that was successful, check the expiry time is one of the values listed in the config
+            if expiry_time_seconds not in app.config["EXPIRY_TIMES"].values():
+                errors.append("Expiry time must be one of the options listed.")
+        
+        # Check that they don't have more than WIREGUARD_MAX_KEYS already
+        existing_keys = KeyEntry.query.filter(KeyEntry.key_owner == user["unique_id"]).count()
+
+        if existing_keys >= app.config["WIREGUARD_MAX_KEYS"]:
+            errors.append(f"You cannot add a new key - you already have {existing_keys} keys added.")
+
+        # Check that this key doesn't already exist in the database
+        existing_keys = KeyEntry.query.filter(KeyEntry.public_key == public_key).count()
+
+        if existing_keys:
+            errors.append(f"This key has already been added.")
+
+        # Now check whether any errors were raised above
+        if len(errors):
+            # Print error and return to the add key page
+            return redirect(url_for("add_key_page"))
+
+        # Convert expiry date to a UTC timestamp
+        expiry_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=expiry_time_seconds)
+        
+        # Everything is good, add the key to the database
+        key_entry = KeyEntry(public_key, user["unique_id"], readable_name, expiry_date)
+        db.session.add(key_entry)
+        db.session.commit()
+
+        # TODO: Run command to add key to WG
+
+        return redirect(url_for("home_page"))
 
 @app.route("/login/<name>")
 def login(name):
@@ -100,6 +168,10 @@ def auth(name):
     else:
         # Otherwise retrieve our user info via client.userinfo()
         user = client.userinfo()
+    
+    # Add our unique ID to the user token
+    # TODO: For different identity providers, the unique_id will be different
+    user["unique_id"] = user["email"]
 
     # Update our session token with this user
     session["user"] = user

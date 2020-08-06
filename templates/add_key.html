@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<meta name="description" content="">
+		<meta name="author" content="">
+		<link rel="icon" href="/static/img/favicon.ico">
+
+		<title>Add Key</title>
+
+		<!-- Bootstrap core CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+		<!-- Custom styles for this template -->
+		<link href="/static/css/add_key.css" rel="stylesheet">
+	</head>
+
+	<body class="text-center">
+        <form id="addKeyForm" action="/add_key" method="POST">
+            <h1 class="h3 mb-3 font-weight-normal">Add a new public key</h1>
+            <div class="form-group">
+              <label for="publicKey">Wireguard Public Key</label>
+              <input type="text" class="form-control" id="publicKey" name="public_key" aria-describedby="publicKeyHelp" maxlength="44">
+              <small id="publicKeyHelp" class="form-text text-muted">See the tutorial on how to generate keys. Ensure you enter your <strong>PUBLIC KEY</strong> and not your private key</small>
+            </div>
+            <div class="form-group">
+              <label for="readableName">Key Name</label>
+              <input type="text" class="form-control" id="readableName" name="readable_name" aria-describedby="readableNameHelp" maxlength="32">
+              <small id="readableNameHelp" class="form-text text-muted">Enter a name for the key such as HOME-PC, WORK-PC</small>
+            </div>
+            <div class="form-group">
+                <label for="expiryDate">Expiry Time</label>
+                <select class="form-control" name="expiry_time" id="expiryTime">
+                    {% for label, seconds in expiry_times.items() %}
+                        <option value="{{seconds}}">{{label}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </form>
+	</body>
+</html>

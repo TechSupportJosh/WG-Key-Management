@@ -13,3 +13,11 @@ TWITTER_CLIENT_SECRET = os.getenv('TWITTER_CLIENT_SECRET')
 
 # Maximum keys a user may have
 WIREGUARD_MAX_KEYS = 5
+
+# The options that users can pick for how long their keys are valid for
+# Format: Label Display : Time in Seconds
+EXPIRY_TIMES = {
+    "1 Hour": 3600,
+    "6 Hours": 3600 * 6,
+    "1 Day": 3600 * 24
+}
