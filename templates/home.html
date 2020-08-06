@@ -19,7 +19,14 @@
   <body>
     <div class="container">
 
-      <h1>Homepage</h1>
+      <div class="row">
+        <div class="col-10">
+          <h1>Homepage</h1>
+        </div>
+        <div class="col-2">
+          <a href="/logout" class="btn btn-primary">Logout</a>
+        </div>
+      </div>
       <!-- These lines just get flashed messages and render them at the top of the page -->
       <!-- This means error messages can be created and displayed using the flash() function -->
       {% with messages = get_flashed_messages(with_categories=true) %}
