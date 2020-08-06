@@ -17,6 +17,17 @@
 	</head>
 
 	<body class="text-center">
+
+        <!-- These lines just get flashed messages and render them at the top of the page -->
+        <!-- This means error messages can be created and displayed using the flash() function -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{category}}">{{ message | replace('\n', '<br>') }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <form id="addKeyForm" action="/add_key" method="POST">
             <h1 class="h3 mb-3 font-weight-normal">Add a new public key</h1>
             <div class="form-group">

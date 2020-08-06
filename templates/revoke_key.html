@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<meta name="description" content="">
+		<meta name="author" content="">
+		<link rel="icon" href="/static/img/favicon.ico">
+
+		<title>Revoke Key</title>
+
+		<!-- Bootstrap core CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+		<!-- Custom styles for this template -->
+		<link href="/static/css/revoke_key.css" rel="stylesheet">
+	</head>
+
+	<body class="text-center">
+    <form id="revokeKeyForm" method="POST">
+        <h1 class="h3 mb-3 font-weight-normal">Revoke {{key.readable_name}}?</h1>
+        <input type="hidden" name="key_id" value="{{key.key_id}}">
+        <p>By revoking this key, it will not be able to be used to connect to the VPN.</p>
+        <div class="form-group">
+          <label for="promptHelp">Type 'Yes' if you are sure you want this key to be revoked.</label>
+          <input type="text" class="form-control" id="prompt" aria-describedby="promptHelp" maxlength="3">
+        </div>
+        <div class="row">
+          <div class="col-6">
+            <a href="/home" class="btn btn-primary">Go Back</a>
+          </div>
+          <div class="col-6">
+            <button type="submit" class="btn btn-success" id="submit-button" disabled="disabled">Submit</button>
+          </div>
+        </div>
+
+      </form>
+  </body>
+  
+  <script>
+    // Upon every input of prompt, check whether they have entered "Yes"
+    const promptInput = document.getElementById("prompt");
+    const submitButton = document.getElementById("submit-button");
+    
+    promptInput.addEventListener("input", function() {
+      if(promptInput.value != "Yes")
+      {
+        submitButton.setAttribute("disabled", "disabled");
+      }
+      else
+      {
+        submitButton.removeAttribute("disabled");
+      }
+    });
+  </script>
+</html>

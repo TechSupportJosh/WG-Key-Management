@@ -20,6 +20,16 @@
     <div class="container">
 
       <h1>Homepage</h1>
+      <!-- These lines just get flashed messages and render them at the top of the page -->
+      <!-- This means error messages can be created and displayed using the flash() function -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+              {% for category, message in messages %}
+                  <div class="alert alert-{{category}}">{{ message | replace('\n', '<br>') }}</div>
+              {% endfor %}
+          {% endif %}
+      {% endwith %}
+
       <h2>Your Public Keys</h2>
       <div class="mb-2">
         {% if keys|length >= WIREGUARD_MAX_KEYS %}
@@ -47,7 +57,7 @@
               </div>
               <div class="col-3 d-flex align-items-center justify-content-center">
                 <div>
-                  <a class="btn btn-danger" href="/revoke_key/{{key.public_key}}">Revoke Access</a>
+                  <a class="btn btn-danger" href="/revoke_key/{{key.key_id}}">Revoke Access</a>
                 </div>
               </div>
             </div>

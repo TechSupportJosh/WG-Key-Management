@@ -1,7 +1,8 @@
 from flask import Flask, url_for, session, request
-from flask import render_template, redirect, abort, url_for
+from flask import render_template, redirect, abort, url_for, flash
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import and_
 
 import os
 import datetime
@@ -86,7 +87,7 @@ def add_key_page():
         # Validate public key
         public_key = request.form.get("public_key", "")
         if not re.match(r"^[0-9a-zA-Z\+\/]{43}=$", public_key):
-            errors.append("Public key is not of the expected format (44 character long base64 string)")
+            errors.append("Public key is not of the expected format.")
         
         # Validate readable name
         readable_name = request.form.get("readable_name", "")
@@ -121,6 +122,7 @@ def add_key_page():
         # Now check whether any errors were raised above
         if len(errors):
             # Print error and return to the add key page
+            flash("An error occured when trying to add this key: \n{}".format("\n".join(errors)), "danger")
             return redirect(url_for("add_key_page"))
 
         # Convert expiry date to a UTC timestamp
@@ -133,6 +135,50 @@ def add_key_page():
 
         # TODO: Run command to add key to WG
 
+        flash(f"Successfully added {key_entry.readable_name}!", "success")
+        return redirect(url_for("home_page"))
+
+@app.route("/revoke_key/<key_id>", methods=["GET", "POST"])
+def revoke_key_page(key_id):
+    user = session.get("user")
+
+    # Check whether the user is logged in
+    if not user:
+        # Redirect to the login page
+        return redirect(url_for("login_page"))
+
+    # Check whether the key entered exists
+    key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == user["unique_id"])).first()
+
+    if key_entry is None:
+        # Display error message and return to home page
+        flash("Failed to revoke this key!", "danger")
+        return redirect(url_for("home_page"))
+
+    if request.method == "GET":
+        # Retrieve key name from database
+        return render_template("revoke_key.html", key=key_entry)
+    else:
+        # Handle removing the key
+        # Check that the key passed in the body is still valid
+        key_id = request.form.get("key_id", 0)
+
+        # Check whether the key entered exists
+        key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == user["unique_id"])).first()
+
+        if key_entry is None:
+            # Display error message and return to home page
+            flash("Failed to revoke this key!", "danger")
+            return redirect(url_for("revoke_key_page", key_id=key_id))
+
+        key_name = key_entry.readable_name
+
+        # Key exists and the user owns this key, so we can delete it
+        db.session.delete(key_entry)
+        db.session.commit()
+
+        # Display success message
+        flash(f"Successfully revoked {key_name}!", "success")
         return redirect(url_for("home_page"))
 
 @app.route("/login/<name>")

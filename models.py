@@ -30,10 +30,11 @@ class User(db.Model):
 class KeyEntry(db.Model):
     __tablename__ = "keys"
 
-    # The public key is the primary key
+    key_id = Column(Integer, primary_key=True, autoincrement=True)
+    
     # Public keys should also be unique
     # Keys are 32 bytes base64 encoded -> 44 characters long
-    public_key = Column(String(44), primary_key=True, unique=True)
+    public_key = Column(String(44), unique=True)
 
     # Owner of this key
     key_owner = Column(String(320), ForeignKey("users.unique_id"))
@@ -57,7 +58,6 @@ class KeyEntry(db.Model):
         self.creation_date = datetime.datetime.utcnow()
 
     def is_expired(self):
-        print(self.expiry_date)
         return datetime.datetime.utcnow() > self.expiry_date
 
     def expiry_date_string(self):
