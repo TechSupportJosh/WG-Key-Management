@@ -20,6 +20,7 @@
     <form id="revokeKeyForm" method="POST">
         <h1 class="h3 mb-3 font-weight-normal">Revoke {{key.readable_name}}?</h1>
         <input type="hidden" name="key_id" value="{{key.key_id}}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <p>By revoking this key, it will not be able to be used to connect to the VPN.</p>
         <div class="form-group">
           <label for="promptHelp">Type 'Yes' if you are sure you want this key to be revoked.</label>

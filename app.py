@@ -3,6 +3,7 @@ from flask import render_template, redirect, abort, url_for, flash, Markup
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_
+from flask_wtf.csrf import CSRFProtect
 
 import os
 import datetime
@@ -38,6 +39,9 @@ oauth.register(
         "scope": "openid email profile"
     }
 )
+
+# Initialise CSRF protection
+csrf = CSRFProtect(app)
 
 # Register blueprints
 from admin import admin
@@ -245,7 +249,7 @@ def auth(name):
     if db_user.locked:
         flash("This account has been locked. Please contact XYZ if you believe this is a mistake.", "danger")
         return redirect(url_for("login_page"))
-        
+
     # Update user with database parameters
     session_user["id"] = db_user.user_id
     session_user["is_admin"] = db_user.administrator
