@@ -90,20 +90,28 @@ class ConnectionRequest(db.Model):
     # Public key ID this connection request is using
     key_entry_id = Column(Integer, ForeignKey("keys.key_id"))
 
+    # IP address of the request's sender
+    ip_address = Column(String(16))
+
     # UTC Date for when the request expires
     expiry_date = Column(DateTime)
 
     # UTC Date for when the request was created
     creation_date = Column(DateTime)
 
-    # Boolean for whether this request has been authenticated
-    request_authenticated = Boolean()
+    # Boolean for whether the user has viewed and responded to this request
+    request_answered = Column(Boolean, default=False)
 
-    def __init__(self, key_owner, key_entry_id, expiry_date):
+    # Boolean for whether this request has been authenticated
+    request_authenticated = Column(Boolean, default=False)
+
+    def __init__(self, key_owner, key_entry_id, ip_address, expiry_date):
         self.key_owner = key_owner
         self.key_entry_id = key_entry_id
+        self.ip_address = ip_address
         self.expiry_date = expiry_date
         self.creation_date = datetime.datetime.utcnow()
+        self.request_answered = False
         self.request_authenticated = False
 
     def is_authenticated(self):
@@ -114,10 +122,16 @@ class ConnectionRequest(db.Model):
             return False
 
         # Retrieve the key entry
-        key_entry = KeyEntry.query.filter(KeyEntry.key_id == self.key_entry_id).first()
+        key_entry = self.get_key_entry()
         
         # Return whether the key_entry is valid and has not expired
         return key_entry is not None and not key_entry.is_expired()
 
     def is_expired(self):
         return datetime.datetime.utcnow() > self.expiry_date
+
+    def expiry_date_string(self):
+        return utc_to_local(self.expiry_date).strftime("%c")
+
+    def get_key_entry(self):
+        return KeyEntry.query.filter(KeyEntry.key_id == self.key_entry_id).first()

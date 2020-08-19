@@ -39,7 +39,40 @@
               {% endfor %}
           {% endif %}
       {% endwith %}
-
+      {% if connection_requests|length %}
+        <h2>Your Connection Requests</h2>
+        <ul class="list-group mb-4">
+        {% for request in connection_requests %}
+          <li class="list-group-item">
+            <div class="row">
+              <div class="col-9">
+                <h5>
+                  <strong>Request to join using {{request.get_key_entry().readable_name}}</strong>
+                </h5>
+                <p class="mb-0">
+                  Expiry Date: {{request.expiry_date_string()}}
+                </p>
+              </div>
+              <div class="col-3 d-flex align-items-center justify-content-center">
+                <div>
+                  {% if request.request_answered %}
+                    <strong>Request 
+                      {% if request.request_authenticated %}
+                        Accepted
+                      {% else %}
+                        Denied
+                      {% endif %}
+                    </strong>
+                  {% else %}
+                    <a class="btn btn-primary" href="/view_connection_request/{{request.req_id}}">View Request</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+        </ul>
+      {% endif %}
       <h2>Your Public Keys</h2>
       <div class="mb-2">
         {% if keys|length >= WIREGUARD_MAX_KEYS %}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<meta name="description" content="">
+		<meta name="author" content="">
+		<link rel="icon" href="/static/img/favicon.ico">
+
+		<title>Revoke Key</title>
+
+		<!-- Bootstrap core CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+		<!-- Custom styles for this template -->
+		<link href="/static/css/connection_request.css" rel="stylesheet">
+	</head>
+
+	<body class="text-center">
+    <form id="connectionRequestForm" method="POST">
+        <h1 class="h3 mb-3 font-weight-normal">TODO: TEXT HERE</h1>
+        <input type="hidden" name="req_id" value="{{connection_request.req_id}}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <p>TODO: Text + details
+          <br>
+          Key Name: <strong>{{connection_request.get_key_entry().readable_name}}</strong><br>
+          Key: <strong>{{connection_request.get_key_entry().public_key}}</strong><br>
+          IP Address: <strong>{{connection_request.ip_address}}</strong><br>
+        </p>
+        <div class="row">
+          <div class="col-6">
+            <button type="submit" name="deny" class="btn btn-danger">Deny Request</a>
+          </div>
+          <div class="col-6">
+            <button type="submit" name="accept" class="btn btn-success">Accept Request</button>
+          </div>
+        </div>
+
+      </form>
+  </body>
+</html>

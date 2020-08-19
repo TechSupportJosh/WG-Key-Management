@@ -16,12 +16,17 @@ def api_connection_request():
             "message": "Request must be JSON"
         }), 400
 
-    # Check whether the request includes user_ids parameter
+    # Check whether the request includes public_key and ip_address
     request_data = request.get_json()
 
     if "public_key" not in request_data:
         return jsonify({
             "message": "Missing parameter 'public_key'"
+        }), 400
+
+    if "ip_address" not in request_data:
+        return jsonify({
+            "message": "Missing parameter 'ip_address'"
         }), 400
 
     public_key = request_data["public_key"]
@@ -66,7 +71,7 @@ def api_connection_request():
         expiry_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=app.config["CONNECTION_REQUEST_EXPIRY_TIME"])
         
         # Add the connection request to the database
-        connection_request = ConnectionRequest(key_owner.user_id, key_entry.key_id, expiry_date)
+        connection_request = ConnectionRequest(key_owner.user_id, key_entry.key_id, request_data["ip_address"], expiry_date)
         db.session.add(connection_request)
         db.session.commit()
 

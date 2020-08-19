@@ -23,7 +23,7 @@ if app.config.get("SECRET_KEY", None) is None:
 db = SQLAlchemy(app)
 
 # Import models after db has been initialised
-from models import User, KeyEntry
+from models import User, KeyEntry, ConnectionRequest
 
 # Create tables in DB - done after the models have been imported
 db.create_all()
@@ -45,7 +45,9 @@ csrf = CSRFProtect(app)
 
 # Register blueprints
 from admin import admin
+from api import api
 app.register_blueprint(admin)
+app.register_blueprint(api)
 
 # The index page consists of the login screen
 @app.route("/")
@@ -67,8 +69,10 @@ def home_page():
     if user:
         # Retrieve the keys for this user
         keys = KeyEntry.query.filter(KeyEntry.key_owner == user["id"]).all()
-        
-        return render_template("home.html", user=user, keys=keys, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
+        # Retrieve connection requests for this user
+        connection_requests = ConnectionRequest.query.filter(ConnectionRequest.key_owner == user["id"]).all()
+
+        return render_template("home.html", user=user, keys=keys, connection_requests=connection_requests, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
     else:
         flash("You must be logged in to access this page.", "danger")
 
@@ -183,7 +187,7 @@ def revoke_key_page(key_id):
         if key_entry is None:
             # Display error message and return to home page
             flash("Failed to revoke this key!", "danger")
-            return redirect(url_for("revoke_key_page", key_id=key_id))
+            return redirect(url_for("home_page"))
 
         key_name = key_entry.readable_name
 
@@ -193,6 +197,90 @@ def revoke_key_page(key_id):
 
         # Display success message
         flash(f"Successfully revoked {key_name}!", "success")
+        return redirect(url_for("home_page"))
+
+@app.route("/view_connection_request/<req_id>", methods=["GET", "POST"])
+def view_connection_request_page(req_id):
+    user = session.get("user")
+
+    # Check whether the user is logged in
+    if not user:
+        flash("You must be logged in to access this page.", "danger")
+
+        # Redirect to the login page
+        return redirect(url_for("login_page"))
+
+    # Now, the user must have logged in recently before accessing this page
+    # TODO: Move 300 seconds to config
+    if user["login_time"] > datetime.datetime.utcnow() + datetime.timedelta(seconds=300):
+        # They haven't logged in recently enough, request that they login again
+        flash("In order to access this page, you must log in again.", "info")
+
+        # In addition to this, add a redirect parameter to the user session to redirect back to this page
+        session["login_redirect"] = url_for("view_connection_request_page", req_id=req_id)
+
+        # Redirect to the login page
+        return redirect(url_for("login_page"))
+
+    # Check whether the connection request exists
+    connection_request = ConnectionRequest.query.filter(and_(ConnectionRequest.req_id == req_id, ConnectionRequest.key_owner == user["id"])).first()
+
+    if connection_request is None:
+        # Display error message and return to home page
+        flash("This connection request does not exist!", "danger")
+        return redirect(url_for("home_page"))
+
+    # Check whether they've already answered to this connection request
+    if connection_request.request_answered:
+        # Display error message and return to home page
+        flash("You've already {} this connection request.".format("accepted" if connection_request.request_authenticated else "denied"), "danger")
+        return redirect(url_for("home_page"))
+
+    if request.method == "GET":
+        return render_template("connection_request.html", connection_request=connection_request)
+    else:
+        # Check that the key passed in the body is still valid
+        req_id = request.form.get("req_id", 0)
+
+        # Check whether the request entered exists
+        connection_request = ConnectionRequest.query.filter(and_(ConnectionRequest.req_id == req_id, ConnectionRequest.key_owner == user["id"])).first()
+
+        if connection_request is None:
+            # Display error message and return to home page
+            flash("This connection request does not exist!", "danger")
+            return redirect(url_for("home_page"))
+
+        # Check whether this request has expired
+        if connection_request.is_expired():
+            # Display error message and return to home page
+            flash("This connection request has expired.", "danger")
+            return redirect(url_for("home_page"))
+
+        # Check whether they want to accept/deny the request
+        print(request.form)
+        accept_clicked = request.form.get("accept", None) is not None
+        deny_clicked = request.form.get("deny", None) is not None
+
+        if not accept_clicked and not deny_clicked:
+            # Display error message and return to home page
+            flash("Please accept or deny the connection request!", "danger")
+            return redirect(url_for("home_page"))
+
+        if accept_clicked:
+            # They wish to accept the request, update the entry in the database and display a success message
+            connection_request.request_answered = True
+            connection_request.request_authenticated = True
+
+            flash(f"Successfully accepted the connection request! Your Wireguard client will now be able to connect to the VPN.", "success")
+        else:
+            # They wish to deny the request, update the entry in the database and display a success message
+            connection_request.request_answered = True
+            connection_request.request_authenticated = False
+
+            flash(f"Successfully denied the connection request!", "success")
+
+        db.session.commit()
+
         return redirect(url_for("home_page"))
 
 @app.route("/login/<name>")
@@ -233,7 +321,8 @@ def auth(name):
     # TODO: For different identity providers, the unique_id will be different
     session_user = {
         "name": user["name"],
-        "unique_id": user["email"]
+        "unique_id": user["email"],
+        "login_time": datetime.datetime.utcnow()
     }
 
     # Now check whether this unique_id exists in the user table
@@ -253,12 +342,20 @@ def auth(name):
     # Update user with database parameters
     session_user["id"] = db_user.user_id
     session_user["is_admin"] = db_user.administrator
+    
+    # Before we overwrite the current session["user"], check whether session["login_redirect"] exists
+    # If it does exist, we only want to redirect to this page if the current session user id == new session user id
+    redirect_url = session.pop("login_redirect", url_for("home_page"))
+    if redirect_url is not None:
+        # If there is a redirect_url, but this user has logged in with a different account, change redirect_url back to home_page
+        if session_user["id"] != session.get("user", {}).get("id", None):
+            redirect_url = url_for("home_page")
 
     # Update our session token with this user
     session["user"] = session_user
 
     # Once we've been authorised, redirect to our home page
-    return redirect(url_for("home_page"))
+    return redirect(redirect_url)
 
 
 @app.route("/logout")
