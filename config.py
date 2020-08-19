@@ -24,3 +24,6 @@ EXPIRY_TIMES = {
     "6 Hours": 3600 * 6,
     "1 Day": 3600 * 24
 }
+
+# Time in seconds before a connection request will expire
+CONNECTION_REQUEST_EXPIRY_TIME = 300

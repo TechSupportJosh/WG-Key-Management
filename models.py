@@ -75,3 +75,49 @@ class KeyEntry(db.Model):
 
     def expiry_date_string(self):
         return utc_to_local(self.expiry_date).strftime("%c")
+
+    def get_key_owner(self):
+        return User.query.filter(User.user_id == self.key_owner).first()
+
+class ConnectionRequest(db.Model):
+    __tablename__ = "connection_requests"
+
+    req_id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # The user who requested connection
+    key_owner = Column(String(320), ForeignKey("users.user_id"))
+
+    # Public key ID this connection request is using
+    key_entry_id = Column(Integer, ForeignKey("keys.key_id"))
+
+    # UTC Date for when the request expires
+    expiry_date = Column(DateTime)
+
+    # UTC Date for when the request was created
+    creation_date = Column(DateTime)
+
+    # Boolean for whether this request has been authenticated
+    request_authenticated = Boolean()
+
+    def __init__(self, key_owner, key_entry_id, expiry_date):
+        self.key_owner = key_owner
+        self.key_entry_id = key_entry_id
+        self.expiry_date = expiry_date
+        self.creation_date = datetime.datetime.utcnow()
+        self.request_authenticated = False
+
+    def is_authenticated(self):
+        """Returns True/False whether the request has been authenticated and that the expiry time
+        has not passed. In addition to this, it also checks that the related KeyEntry has not expired"""
+        # Check whether our request is authenticated and has not expired
+        if not self.request_authenticated or self.is_expired():
+            return False
+
+        # Retrieve the key entry
+        key_entry = KeyEntry.query.filter(KeyEntry.key_id == self.key_entry_id).first()
+        
+        # Return whether the key_entry is valid and has not expired
+        return key_entry is not None and not key_entry.is_expired()
+
+    def is_expired(self):
+        return datetime.datetime.utcnow() > self.expiry_date
