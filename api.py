@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, session, url_for, flash, redirect, jsonify, request
-from models import User, KeyEntry, ConnectionRequest
+from models import User, KeyEntry, ConnectionRequest, FCMDevice
 from app import db, app, csrf
+from pyfcm import FCMNotification
 import datetime
 
 api = Blueprint("api", __name__, url_prefix="/api")
+push_service = FCMNotification(api_key=app.config["FCM_API_KEY"])
 
 @api.route("/connection_request", methods=["POST"])
 @csrf.exempt
@@ -75,9 +77,79 @@ def api_connection_request():
         db.session.add(connection_request)
         db.session.commit()
 
-        # TODO: Send push notification here
+        # Retrieve FCM tokens
+        devices = FCMDevice.query.filter(FCMDevice.device_owner == key_owner.user_id).all()
+        tokens = [device.device_token for device in devices]
+       
+        # TODO: Make this message look nice, fix click_action
+        push_service.notify_multiple_devices(
+            registration_ids=tokens, 
+            message_title="New connection request from {}".format(key_entry.readable_name), 
+            message_body="Accept this connection request...",
+            message_icon="https://cdn3.iconfinder.com/data/icons/wpzoom-developer-icon-set/500/104-512.png",
+            click_action="{}".format(url_for("view_connection_request_page", req_id=connection_request.req_id))
+        )
+
 
         # As the request has just been created, we can return authenticated as false
         return jsonify({
             "authenticated": False
         }), 200
+
+@api.route("/fcm_register", methods=["POST"])
+@csrf.exempt
+def firebase_cm_register():
+    user = session.get("user")
+
+    # Check the user is authenticated
+    if user is None:
+        return jsonify({
+            "message": "Unauthorised"
+        }), 401
+
+    # Check whether the request is json
+    if not request.is_json:
+        return jsonify({
+            "message": "Request must be JSON"
+        }), 400
+    
+    # Check whether the request data contains a device token
+    request_data = request.get_json()
+
+    if "device_token" not in request_data:
+        return jsonify({
+            "message": "Missing parameter 'device_token'"
+        }), 400
+
+    # While we're here, clear out old tokens that are no longer valid...
+    devices = FCMDevice.query.filter(FCMDevice.device_owner == user["id"]).all()
+
+    # Device_tokens is in the form device_token:FCMDevice
+    device_tokens = {}
+
+    for device in devices:
+        device_tokens[device.device_token] = device
+
+    # Check whether the ID is already in the database
+    if request_data["device_token"] not in device_tokens.keys():
+        # Check whether the new device is a valid ID
+        if len(push_service.clean_registration_ids([request_data["device_token"]])):
+            # It is a valid token, add it to the database
+            FCM_device = FCMDevice(user["id"], request_data["device_token"])
+            db.session.add(FCM_device)
+
+    # Now take the list of device_tokens keys and pass it to push service to validate tokens
+    valid_device_tokens = push_service.clean_registration_ids(device_tokens.keys())
+
+    # Now get the list of invalid device tokens
+    invalid_device_tokens = list(set(device_tokens.keys()) - set(valid_device_tokens))
+
+    # Now delete FCMDevices using invalid_device_tokens
+    for invalid_token in invalid_device_tokens:
+        db.session.delete(device_tokens[invalid_token])
+
+    # Now we can commit all of our changes
+    db.session.commit()
+
+    # And finally, return with an empty JSON body and 200 OK!
+    return jsonify({}), 200

@@ -50,7 +50,7 @@ class KeyEntry(db.Model):
     public_key = Column(String(44), unique=True)
 
     # Owner of this key
-    key_owner = Column(String(320), ForeignKey("users.user_id"))
+    key_owner = Column(Integer, ForeignKey("users.user_id"))
 
     # Name of the key that the user gives it, for example HOME-PC, Work Laptop etc.
     readable_name = Column(String(32))
@@ -85,7 +85,7 @@ class ConnectionRequest(db.Model):
     req_id = Column(Integer, primary_key=True, autoincrement=True)
 
     # The user who requested connection
-    key_owner = Column(String(320), ForeignKey("users.user_id"))
+    key_owner = Column(Integer, ForeignKey("users.user_id"))
 
     # Public key ID this connection request is using
     key_entry_id = Column(Integer, ForeignKey("keys.key_id"))
@@ -135,3 +135,18 @@ class ConnectionRequest(db.Model):
 
     def get_key_entry(self):
         return KeyEntry.query.filter(KeyEntry.key_id == self.key_entry_id).first()
+
+class FCMDevice(db.Model):
+    __tablename__ = "fcm_devices"
+
+    device_id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # The user who requested connection
+    device_token = Column(String(500), ForeignKey("users.user_id"), unique=True)
+
+    # The user who requested connection
+    device_owner = Column(Integer, ForeignKey("users.user_id"))
+
+    def __init__(self, device_owner, device_token):
+        self.device_owner = device_owner
+        self.device_token = device_token

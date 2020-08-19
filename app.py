@@ -1,4 +1,4 @@
-from flask import Flask, url_for, session, request
+from flask import Flask, url_for, session, request, send_from_directory
 from flask import render_template, redirect, abort, url_for, flash, Markup
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
@@ -257,7 +257,6 @@ def view_connection_request_page(req_id):
             return redirect(url_for("home_page"))
 
         # Check whether they want to accept/deny the request
-        print(request.form)
         accept_clicked = request.form.get("accept", None) is not None
         deny_clicked = request.form.get("deny", None) is not None
 
@@ -365,3 +364,9 @@ def logout():
 
     # Redirect to the home page
     return redirect(url_for("login_page"))
+
+# Firebase JS SDK expects firebase-messaging-sw.js to be at the root directory
+# This route serves the file from static/js at the root directory
+@app.route("/firebase-messaging-sw.js")
+def firebase_messaging_js():
+    return send_from_directory(os.path.join("static", "js"), "firebase-messaging-sw.js")
