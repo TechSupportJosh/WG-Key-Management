@@ -59,15 +59,23 @@
         </thead>
         <tbody>
           {% for user in users %}
-          <tr>
+          <tr id="userEntry-{{user.user_id}}">
             <th scope="row">{{user.name}}</th>
             <th>{{user.unique_id}}</th>
             <td>{{user.auth_type | title}}</td>
             <td>{{"Administrator" if user.administrator else "User"}}</td>
-            <td>
+            <td style="display: flex; justify-content: space-evenly;">
               <button class="btn user-button lock-button" id="lockButton-{{user.user_id}}" data-user-id="{{user.user_id}}" data-locked="{{user.locked | int}}">
                 <img id="lockButtonIcon-{{user.user_id}}"/>
-              </button></td>
+              </button>
+              <button class="btn btn-danger user-button delete-button" id="deleteButton-{{user.user_id}}" data-user-id="{{user.user_id}}"
+              {% if user.administrator %}
+                disabled="disabled"
+              {% endif %}
+              >
+                <img src="/static/img/trash-fill.svg"/>
+              </button>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -93,6 +101,10 @@
 
       // Add event listener
       button.addEventListener("click", () => lockAccountHandler(button));
+    });
+
+    Array.from(document.getElementsByClassName("delete-button")).forEach(button => {
+      button.addEventListener("click", () => deleteAccountHandler(button))
     });
 
     function updateLockButtonDisplay(userId)
@@ -136,6 +148,33 @@
         {
           // TODO: Add proper display of erroring
           console.log("Failed to lock account.");
+        }
+      });
+    }
+
+    function deleteAccountHandler(button)
+    {
+      // Get user ID from button
+      const userId = parseInt(button.getAttribute("data-user-id"));
+      
+      // Firstly add a prompt to check they definitely want to delete this user
+      if(!confirm("Are you sure you want to delete this account?"))
+        return;
+
+      // Send request
+      postData("/api/delete_account", {
+        "user_id": userId
+      }).then(response => {
+        if(response.success)
+        {
+          // Delete user from the table
+          const userEntry = document.getElementById(`userEntry-${userId}`);
+          userEntry.parentNode.removeChild(userEntry);
+        }
+        else
+        {
+          // TODO: Add proper display of erroring
+          console.log("Failed to delete account.");
         }
       });
     }

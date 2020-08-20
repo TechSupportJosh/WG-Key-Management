@@ -189,13 +189,91 @@ def admin_lock_account():
         # operation is not a valid input, return Bad Request 400
         return jsonify({
             "success": False,
-            "message": "Invalid parameter operation - must be lock, unlock or toggle."
+            "message": "Invalid parameter operation - must be lock, unlock or toggle"
         }), 400
     
     # If everything is good so far, we can then proceed
     request_user = User.query.filter(User.user_id == user_id).first()
+
+    # Check whether this user exists
+    if request_user is None:
+        return jsonify({
+            "success": False,
+            "message": "User does not exist"
+        }), 404
+
+    # Check the user isn't locking themselves
+    if request_user.user_id == user["id"]:
+        return jsonify({
+            "success": False,
+            "message": "Cannot lock yourself"
+        }), 400
+
     request_user.locked = not request_user.locked if lock_operation == "toggle" else (lock_operation == "lock") # If lock operation is lock, then set locked to true, otherwise unlock them (set to false)
-    print("user is now {}".format(request_user.locked))
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Operation was successful."
+    }), 200
+
+@api.route("/delete_account", methods=["POST"])
+def admin_delete_account():
+    user = session.get("user")
+
+    # If the user isn't logged in or an administrator, return Unauthorised, 401
+    if user is None or not user["is_admin"]:
+        return jsonify({
+            "success": False,
+            "message": "Unauthorised"
+        }), 401
+
+    # Check whether the request is json
+    if not request.is_json:
+        return jsonify({
+            "success": False,
+            "message": "Request must be JSON"
+        }), 400
+    
+    # Check whether the request includes user_id parameter
+    request_data = request.get_json()
+
+    user_id = request_data.get("user_id")
+    if user_id is None or not isinstance(user_id, int):
+        # user_id is not the correct type, return Bad Request 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid parameter user_id"
+        }), 400
+
+    # If everything is good so far, we can then proceed
+    request_user = User.query.filter(User.user_id == user_id).first()
+
+    # Check whether this user exists
+    if request_user is None:
+        return jsonify({
+            "success": False,
+            "message": "User does not exist"
+        }), 404
+
+    # Check the user isn't deleting themselves
+    if request_user.user_id == user["id"]:
+        return jsonify({
+            "success": False,
+            "message": "Cannot lock yourself"
+        }), 400
+
+    # Check the user isn't another administrator
+    # TODO: Should there be another administraotr role that has ultimate power?
+    if request_user.administrator:
+        return jsonify({
+            "success": False,
+            "message": "Cannot delete an administrator"
+        }), 400
+
+    # Delete the user
+    db.session.delete(request_user)
+
     db.session.commit()
 
     return jsonify({
