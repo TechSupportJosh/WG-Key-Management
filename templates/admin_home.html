@@ -64,7 +64,10 @@
             <th>{{user.unique_id}}</th>
             <td>{{user.auth_type | title}}</td>
             <td>{{"Administrator" if user.administrator else "User"}}</td>
-            <td></td>
+            <td>
+              <button class="btn user-button lock-button" id="lockButton-{{user.user_id}}" data-user-id="{{user.user_id}}" data-locked="{{user.locked | int}}">
+                <img id="lockButtonIcon-{{user.user_id}}"/>
+              </button></td>
           </tr>
           {% endfor %}
         </tbody>
@@ -79,5 +82,78 @@
     $(document).ready(function() {
       $('#userTable').DataTable();
     });
+
+    // Retrieve CSRF token
+    const csrfToken = "{{ csrf_token() }}";
+
+    // Handle user buttons
+    Array.from(document.getElementsByClassName("lock-button")).forEach(button => {
+      // Update display of button
+      updateLockButtonDisplay(button.getAttribute("data-user-id"));
+
+      // Add event listener
+      button.addEventListener("click", () => lockAccountHandler(button));
+    });
+
+    function updateLockButtonDisplay(userId)
+    {
+      const button = document.getElementById(`lockButton-${userId}`);
+      const buttonIcon = document.getElementById(`lockButtonIcon-${userId}`);
+      const locked = button.getAttribute("data-locked") == "1";
+      if(locked)
+      {
+        buttonIcon.src = "/static/img/lock-fill.svg";
+        button.classList.remove("btn-success");
+        button.classList.add("btn-danger");
+      }
+      else
+      {
+        buttonIcon.src = "/static/img/unlock-fill.svg";
+        button.classList.remove("btn-danger");
+        button.classList.add("btn-success");
+      }
+    }
+
+    // Account button handlers
+    function lockAccountHandler(button)
+    {
+      // Get user ID from button
+      const userId = parseInt(button.getAttribute("data-user-id"));
+      
+      // Send request
+      postData("/api/lock_account", {
+        "user_id": userId,
+        "operation": "toggle"
+      }).then(response => {
+        if(response.success)
+        {
+          // Toggle locked attribute
+          button.setAttribute("data-locked", button.getAttribute("data-locked") == "0" ? "1" : "0");
+          // Update button
+          updateLockButtonDisplay(userId);
+        }
+        else
+        {
+          // TODO: Add proper display of erroring
+          console.log("Failed to lock account.");
+        }
+      });
+    }
+
+    async function postData(url = "", data = {}) {
+      // Default options are marked with *
+      const response = await fetch(url, {
+        method: "POST",
+        cache: "no-cache",
+        credentials: "same-origin", // include, *same-origin, omit
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken
+        },
+        body: JSON.stringify(data) // body data type must match "Content-Type" header
+      });
+      return response.json(); // parses JSON response into native JavaScript objects
+    }
+
   </script>
 </html>
