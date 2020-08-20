@@ -37,8 +37,7 @@ class User(db.Model):
         self.name = name
         self.auth_type = auth_type
         self.administrator = administrator
-        self.locked = True
-
+        self.locked = False
 
 class KeyEntry(db.Model):
     __tablename__ = "keys"
