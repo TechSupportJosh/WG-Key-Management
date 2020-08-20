@@ -43,6 +43,9 @@
       <div class="alert alert-info" id="notificationAlert" style="display:none;">
         <a href="#" id="allowNotifications">Click here to allow notifications to receieve notifications for connection requests.</a>
       </div>
+      <div class="alert alert-info" id="newRequestAlert" style="display: none;">
+        <a href="">You have a new connection request, click here to refresh the page to view it.</a>
+      </div>
       <ul class="list-group mb-4">
       {% for request in connection_requests %}
         <li class="list-group-item">
@@ -135,19 +138,26 @@
       const messaging = firebase.messaging();
       messaging.usePublicVapidKey(firebaseVapidKey);
 
+      function isTokenSentToServer() {
+        return window.localStorage.getItem('sentToServer') === '1';
+      }
+
       function sendTokenToServer(currentToken)
       {
-        console.log("[FCM] Sending token to server...")
-        fetch("/api/fcm_register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            "device_token": currentToken
-          }),
-        })
+        if(isTokenSentToServer())
+        {
+          console.log("[FCM] Sending token to server...")
+          fetch("/api/fcm_register", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+              "device_token": currentToken
+            }),
+          })
+        }
       }
       
       function updateUIForPushEnabled(notificationsAllowed)
@@ -183,6 +193,9 @@
         });
       }
 
+      function setTokenSentToServer(sent) {
+        window.localStorage.setItem('sentToServer', sent ? '1' : '0');
+      }
       // On page load...
       // If they've granted notification permission, hide the dialog box.
       if(Notification.permission == "granted")
@@ -199,8 +212,14 @@
       document.getElementById("allowNotifications").addEventListener("click", getFCMToken);
 
       messaging.onMessage((payload) => {
-        console.log('Message received. ', payload);
-        // TODO: Handle notifications when the user is on this page
+        // This function only fires when the user is on the page and viewing it.
+        // Therefore, we want to display to them that a new request is available and having a push notification.
+        notification = new Notification(payload.notification.title, payload.notification);
+        
+        // NOTE: Rather than displaying an alert that says there's a new connection request, can we add the html straight away?
+        // Allowing the user to refresh alerts them that something about the page has changed, as connection requests will look
+        // very similar.
+        newRequestAlert.style.display = "";
       });
 
       // Callback fired if Instance ID token is updated.
