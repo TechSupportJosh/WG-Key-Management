@@ -18,20 +18,24 @@
 
 	<body class="text-center">
     <form id="connectionRequestForm" method="POST">
-        <h1 class="h3 mb-3 font-weight-normal">TODO: TEXT HERE</h1>
+        <h1 class="h3 mb-3 font-weight-normal">Accept this connection request?</h1>
         <input type="hidden" name="req_id" value="{{connection_request.req_id}}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-        <p>TODO: Text + details
+        <p>Someone has tried to connect to the VPN using {{connection_request.get_key_entry().readable_name}}'s keypair. Please confirm that it was you that was using these credentials to connect to the VPN.
+          <br>
           <br>
           Key Name: <strong>{{connection_request.get_key_entry().readable_name}}</strong><br>
           Key: <strong>{{connection_request.get_key_entry().public_key}}</strong><br>
           IP Address: <strong>{{connection_request.ip_address}}</strong><br>
         </p>
         <div class="row">
-          <div class="col-6">
+          <div class="col-3">
+            <a href="/home" class="btn btn-primary">Go Back</a>
+          </div>
+          <div class="col-3 offset-3">
             <button type="submit" name="deny" class="btn btn-danger">Deny Request</a>
           </div>
-          <div class="col-6">
+          <div class="col-3">
             <button type="submit" name="accept" class="btn btn-success">Accept Request</button>
           </div>
         </div>

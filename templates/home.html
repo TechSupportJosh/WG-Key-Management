@@ -52,11 +52,11 @@
                 <strong>Request to join using {{request.get_key_entry().readable_name}}</strong>
               </h5>
               <p class="mb-0">
-                Expiry Date: {{request.expiry_date_string()}}
+                Request expires in <span id="connectionRequestTimer-{{request.req_id}}"></span>
               </p>
             </div>
             <div class="col-3 d-flex align-items-center justify-content-center">
-              <div>
+              <div id="connectionRequestButton-{{request.req_id}}">
                 {% if request.request_answered %}
                   <strong>Request 
                     {% if request.request_authenticated %}
@@ -116,6 +116,14 @@
     <script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-messaging.js"></script>
     
     <script src="/static/js/firebase-config.js"></script>
+
+    <script>
+      // Load connection request timers
+      // Request times are in the format {"id": 3, "expiryTime": UTC timestamp}
+      const connectionRequestTimes = JSON.parse('{{connection_requests_times | tojson | safe}}');
+    </script>
+    
+    <script src="/static/js/home.js"></script>
 
     <script>
       // Your web app's Firebase configuration

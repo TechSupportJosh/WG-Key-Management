@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_
 from flask_wtf.csrf import CSRFProtect
 
+import utils
 import os
 import datetime
 import re
@@ -72,7 +73,12 @@ def home_page():
         # Retrieve connection requests for this user
         connection_requests = ConnectionRequest.query.filter(ConnectionRequest.key_owner == user["id"]).all()
 
-        return render_template("home.html", user=user, keys=keys, connection_requests=connection_requests, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
+        # Create a list of objects in the format [{"id": 3, "expiryTime": 429819111}]
+        connection_requests_times = []
+        for request in connection_requests:
+            connection_requests_times.append({"id": request.req_id, "expiryTime": utils.dt2ts(request.expiry_date)})
+
+        return render_template("home.html", user=user, keys=keys, connection_requests=connection_requests, connection_requests_times=connection_requests_times, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
     else:
         flash("You must be logged in to access this page.", "danger")
 
