@@ -153,3 +153,52 @@ def firebase_cm_register():
 
     # And finally, return with an empty JSON body and 200 OK!
     return jsonify({}), 200
+
+@api.route("/lock_account", methods=["POST"])
+def admin_lock_account():
+    user = session.get("user")
+
+    # If the user isn't logged in or an administrator, return Unauthorised, 401
+    if user is None or not user["is_admin"]:
+        return jsonify({
+            "success": False,
+            "message": "Unauthorised"
+        }), 401
+
+    # Check whether the request is json
+    if not request.is_json:
+        return jsonify({
+            "success": False,
+            "message": "Request must be JSON"
+        }), 400
+    
+    # Check whether the request includes user_id parameter
+    request_data = request.get_json()
+
+    user_id = request_data.get("user_id")
+    if user_id is None or not isinstance(user_id, int):
+        # user_id is not the correct type, return Bad Request 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid parameter user_id"
+        }), 400
+
+    # Check whether the request includes whether the accounts should be locked, unlocked or toggled
+    lock_operation = request_data.get("operation")
+    if lock_operation not in ["lock", "unlock", "toggle"]:
+        # operation is not a valid input, return Bad Request 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid parameter operation - must be lock, unlock or toggle."
+        }), 400
+    
+    # If everything is good so far, we can then proceed
+    request_user = User.query.filter(User.user_id == user_id).first()
+    request_user.locked = not request_user.locked if lock_operation == "toggle" else (lock_operation == "lock") # If lock operation is lock, then set locked to true, otherwise unlock them (set to false)
+    print("user is now {}".format(request_user.locked))
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Operation was successful."
+    }), 200
