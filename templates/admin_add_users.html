@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="/static/img/favicon.ico">
+
+    <title>Admin Home</title>
+
+    <!-- Bootstrap core CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+		<!-- Custom styles for this template -->
+    <link href="/static/css/home.css" rel="stylesheet">
+
+  </head>
+
+  <body>
+    <div class="container">
+
+      <div class="row">
+        <div class="col-10">
+          <h1>Add Users</h1>
+        </div>
+        <div class="col-2">
+          <a href="/admin" class="btn btn-primary">Go Back</a>
+        </div>
+      </div>
+      <!-- These lines just get flashed messages and render them at the top of the page -->
+      <!-- This means error messages can be created and displayed using the flash() function -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+              {% for category, message in messages %}
+                  <div class="alert alert-{{category}}">{{ message }}</div>
+              {% endfor %}
+          {% endif %}
+      {% endwith %}
+
+      <h2>Add Users</h2>
+      <h4>Upload CSV</h4>
+      <form action="/admin/add_users_csv" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <p>File must be in the format: unique id (email, id number, etc.),name,auth_type</p>
+        <div class="form-group">
+          <label for="csvFile">CSV file</label>
+          <input type="file" class="form-control-file" name="csv_file" id="csvFile">
+        </div>
+        <button type="submit" class="btn btn-primary">Upload</button>
+      </form>
+    </div> <!-- /container -->
+  </body>
+</html>

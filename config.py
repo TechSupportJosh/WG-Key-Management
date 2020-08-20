@@ -17,6 +17,12 @@ FCM_API_KEY = os.getenv("FCM_API_KEY")
 # Database URI
 SQLALCHEMY_DATABASE_URI = "sqlite:////tmp/test.db"
 
+# Supported OAUTH types
+SUPPORTED_AUTH_TYPES = ["google"]
+
+# Folder that CSVs are uploaded to 
+CSV_UPLOAD_FOLDER = "/tmp/"
+
 # Maximum keys a user may have
 WIREGUARD_MAX_KEYS = 5
 
