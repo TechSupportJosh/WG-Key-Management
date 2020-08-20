@@ -342,13 +342,8 @@ def auth(name):
     session_user["id"] = db_user.user_id
     session_user["is_admin"] = db_user.administrator
     
-    # Before we overwrite the current session["user"], check whether session["login_redirect"] exists
-    # If it does exist, we only want to redirect to this page if the current session user id == new session user id
+    # Attempt to get a redirect login, if there isn't a redirect redefined, use the home page.
     redirect_url = session.pop("login_redirect", url_for("home_page"))
-    if redirect_url is not None:
-        # If there is a redirect_url, but this user has logged in with a different account, change redirect_url back to home_page
-        if session_user["id"] != session.get("user", {}).get("id", None):
-            redirect_url = url_for("home_page")
 
     # Update our session token with this user
     session["user"] = session_user
