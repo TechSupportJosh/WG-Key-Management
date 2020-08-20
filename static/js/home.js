@@ -15,11 +15,11 @@ function startTimer(connectionRequestId, duration) {
         diff = duration - (((Date.now() - start) / 1000) | 0);
 
         // does the same job as parseInt truncates the float
-        minutes = (diff / 60) | 0;
-        seconds = (diff % 60) | 0;
+        minutesInt = (diff / 60) | 0;
+        secondsInt = (diff % 60) | 0;
 
-        minutes = minutes < 10 ? "0" + minutes : minutes;
-        seconds = seconds < 10 ? "0" + seconds : seconds;
+        minutes = minutesInt < 10 ? "0" + minutesInt : minutesInt;
+        seconds = secondsInt < 10 ? "0" + secondsInt : secondsInt;
 
         display.textContent = minutes + ":" + seconds; 
 
@@ -29,13 +29,16 @@ function startTimer(connectionRequestId, duration) {
             start = Date.now() + 1000;
         }
         
-        if(minutes <= 0 && seconds <= 0)
+        if(minutesInt <= 0 && secondsInt <= 0)
         {
             // Timer has finished, stop the timer function
             clearInterval(timerId);
 
             // Then update the button to display Request Expired
             document.getElementById(`connectionRequestButton-${connectionRequestId}`).innerHTML = "<strong>Request Expired</strong>";
+
+            // And finally, just ensure that the display.textContent contains the expected 00:00
+            display.textContent = "00:00";
         }
     };
     // we don't want to wait a full second before the timer starts
