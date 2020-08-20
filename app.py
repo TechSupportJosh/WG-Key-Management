@@ -70,8 +70,12 @@ def home_page():
     if user:
         # Retrieve the keys for this user
         keys = KeyEntry.query.filter(KeyEntry.key_owner == user["id"]).all()
+        
         # Retrieve connection requests for this user
         connection_requests = ConnectionRequest.query.filter(ConnectionRequest.key_owner == user["id"]).all()
+
+        # Remove expired requests
+        connection_requests = filter(lambda request: not request.is_expired(), connection_requests)
 
         # Create a list of objects in the format [{"id": 3, "expiryTime": 429819111}]
         connection_requests_times = []
