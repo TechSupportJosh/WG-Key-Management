@@ -45,7 +45,50 @@ def admin_add_users():
         # Redirect to the user page
         return redirect(url_for("home_page"))
     
-    return render_template("admin_add_users.html")
+    return render_template("admin_add_users.html", SUPPORTED_AUTH_TYPES=app.config["SUPPORTED_AUTH_TYPES"])
+
+@admin.route("/add_users_form", methods=["POST"])
+def admin_add_users_form():
+    user = session.get("user")
+
+    # Check whether this user is an administrator
+    if user is None:
+        flash("You must be logged in to access this page.", "danger")
+
+        # Otherwise, redirect to the login page
+        return redirect(url_for("login_page"))
+    elif not user["is_admin"]:
+        flash("You are not authorised to access this page.", "danger")
+
+        # Redirect to the user page
+        return redirect(url_for("home_page"))
+
+    # Check form parameters
+    unique_id = request.form.get("unique_id", None)
+    name = request.form.get("name", None)
+    auth_type = request.form.get("auth_type", None)
+
+    if unique_id is None or name is None or auth_type is None:
+        flash("Please enter a unique ID, name and auth_type.", "danger")
+
+        # Redirect to the user page
+        return redirect(url_for("admin.admin_add_users"))
+
+    # Check whether the auth type is supported
+    if auth_type not in app.config["SUPPORTED_AUTH_TYPES"]:
+        flash("Please enter a unique ID, name and auth_type.", "danger")
+
+        # Redirect to the user page
+        return redirect(url_for("admin.admin_add_users"))
+
+    # Add user to database
+    user = User(unique_id, name, auth_type, administrator="administrator" in request.form)
+    db.session.add(user)
+    db.session.commit()
+
+    flash("Successfully added the user {}.".format(name), "success")
+
+    return redirect(url_for("admin.admin_add_users"))
 
 @admin.route("/add_users_csv", methods=["POST"])
 def admin_add_users_csv():
