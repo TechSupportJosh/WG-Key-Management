@@ -42,6 +42,7 @@ class User(db.Model):
 
 class KeyEntry(db.Model):
     __tablename__ = "keys"
+    __table_args__ = {'sqlite_autoincrement': True}
 
     key_id = Column(Integer, primary_key=True, autoincrement=True)
     
@@ -81,6 +82,7 @@ class KeyEntry(db.Model):
 
 class ConnectionRequest(db.Model):
     __tablename__ = "connection_requests"
+    __table_args__ = {'sqlite_autoincrement': True}
 
     req_id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -138,6 +140,7 @@ class ConnectionRequest(db.Model):
 
 class FCMDevice(db.Model):
     __tablename__ = "fcm_devices"
+    __table_args__ = {'sqlite_autoincrement': True}
 
     device_id = Column(Integer, primary_key=True, autoincrement=True)
 
