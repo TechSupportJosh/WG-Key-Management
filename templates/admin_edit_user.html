@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="/static/img/favicon.ico">
+
+    <title>Home</title>
+
+    <!-- Bootstrap core CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+		<!-- Custom styles for this template -->
+		<link href="/static/css/home.css" rel="stylesheet">
+  </head>
+
+  <body>
+    <div class="container">
+
+      <div class="row">
+        <div class="col-10">
+          <h1>Edit User</h1>
+        </div>
+        <div class="col-2">
+          <a href="/admin/" class="btn btn-primary">Go Back</a>
+        </div>
+      </div>
+      <!-- These lines just get flashed messages and render them at the top of the page -->
+      <!-- This means error messages can be created and displayed using the flash() function -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+              {% for category, message in messages %}
+                  <div class="alert alert-{{category}}">{{ message }}</div>
+              {% endfor %}
+          {% endif %}
+      {% endwith %}
+      
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="user_id" value="{{user.user_id}}"/>
+        <div class="form-group">
+          <label for="uniqueId">Unique ID</label>
+          <input type="text" class="form-control" name="unique_id" id="uniqueId" placeholder="example@test.com" value="{{user.unique_id}}">
+        </div>
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input type="text" class="form-control" name="name" id="name" placeholder="John Doe" value="{{user.name}}">
+        </div>
+        <div class="form-group">
+          <label for="authType">Auth Type</label>
+          <select class="form-control" id="authType" name="auth_type">
+            {% for auth_type in SUPPORTED_AUTH_TYPES %}
+              <option value="{{auth_type}}" 
+                {% if user.auth_type == auth_type %}
+                  selected
+                {% endif %}
+              >{{auth_type | title}}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="" name="administrator" id="administrator"
+          {% if user.administrator %}
+            checked
+          {% endif %}
+          >
+          <label class="form-check-label" for="administrator">
+            Administrator
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary mt-2">Submit Changes</button>
+      </form>
+
+      <h2 class="mt-4">User's Public Keys</h2>
+
+      {% if not keys|length %}
+        <span>No active public keys.</span>
+      {% endif %}
+
+      <ul class="list-group">
+        {% for key in keys %}
+          <li class="list-group-item">
+            <div class="row">
+              <div class="col-9">
+                <h5>
+                  <strong>{{key.readable_name}}</strong>
+                  {% if key.is_expired() %}
+                    <span style="color: red;">(EXPIRED)</span>
+                  {% endif %}
+                </h5>
+                <p class="mb-0">Key: {{key.public_key}}<br>
+                  Expiry Date: {{key.expiry_date_string()}}
+                </p>
+              </div>
+              <div class="col-3 d-flex align-items-center justify-content-center">
+                <div id="revokeKeyContainer-{{key.key_id}}">
+                  <button class="btn btn-danger revoke-key" data-key-id="{{key.key_id}}">Revoke Access</a>
+                </div>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </div> <!-- /container -->
+    
+    <script>
+
+      // Retrieve CSRF token
+      const csrfToken = "{{ csrf_token() }}";
+
+      Array.from(document.getElementsByClassName("revoke-key")).forEach(button => button.addEventListener("click", () => revokeKeyHandler(button)))
+    
+      function revokeKeyHandler(button)
+      {
+        // Retrieve key ID from button
+        const keyId = parseInt(button.getAttribute("data-key-id"));
+
+        // Firstly add a prompt to check they definitely want to delete this key
+        if(!confirm("Are you sure you want to revoke this key?"))
+          return;
+
+        // Send request
+        postData("/api/revoke_key", {
+          "key_id": keyId
+        }).then(response => {
+          if(response.success)
+          {
+            // Update key display
+            const keyContainer = document.getElementById(`revokeKeyContainer-${keyId}`);
+            keyContainer.innerHTML = "<strong>Key Revoked</strong>";
+          }
+          else
+          {
+            // TODO: Add proper display of erroring
+            console.log("Failed to delete account.");
+          }
+        });
+      }
+
+      async function postData(url = "", data = {}) {
+        // Default options are marked with *
+        const response = await fetch(url, {
+          method: "POST",
+          cache: "no-cache",
+          credentials: "same-origin", // include, *same-origin, omit
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken
+          },
+          body: JSON.stringify(data) // body data type must match "Content-Type" header
+        });
+        return response.json(); // parses JSON response into native JavaScript objects
+      }
+
+    </script>
+  </body>
+</html>

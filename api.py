@@ -56,7 +56,7 @@ def api_connection_request():
         return jsonify({
             "message": "Key owner's account is locked"
         })
-        
+
     # Now check whether there is an existing connection request for this key
     connection_request = ConnectionRequest.query.filter(ConnectionRequest.key_entry_id == key_entry.key_id).first()
 
@@ -280,6 +280,68 @@ def admin_delete_account():
 
     # Delete the user
     db.session.delete(request_user)
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Operation was successful."
+    }), 200
+
+
+# The API endpoint for revoking keys is used for the administrator control panel
+# This endpoint is NOT used when a user navigates to /revoke_key
+@api.route("/revoke_key", methods=["POST"])
+def admin_revoke_key():
+    user = session.get("user")
+
+    # If the user isn't logged in or an administrator, return Unauthorised, 401
+    if user is None or not user["is_admin"]:
+        return jsonify({
+            "success": False,
+            "message": "Unauthorised"
+        }), 401
+
+    # Check whether the request is json
+    if not request.is_json:
+        return jsonify({
+            "success": False,
+            "message": "Request must be JSON"
+        }), 400
+    
+    # Check whether the request includes key_id parameter
+    request_data = request.get_json()
+
+    key_id = request_data.get("key_id")
+    if key_id is None or not isinstance(key_id, int):
+        # key_id is not the correct type, return Bad Request 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid parameter key_id"
+        }), 400
+
+    # If everything is good so far, we can then proceed
+    request_key = KeyEntry.query.filter(KeyEntry.key_id == key_id).first()
+
+    # Check whether this key exists
+    if request_key is None:
+        return jsonify({
+            "success": False,
+            "message": "Key does not exist"
+        }), 404
+    
+    key_owner = request_key.get_key_owner()
+
+    # Check the user isn't another administrator
+    # TODO: Should there be another administraotr role that has ultimate power?
+    if key_owner.administrator and key_owner.user_id != user["id"]:
+        return jsonify({
+            "success": False,
+            "message": "Cannot delete an administrator's keys"
+        }), 400
+
+    # Delete the key
+    db.session.delete(request_key)
 
     db.session.commit()
 

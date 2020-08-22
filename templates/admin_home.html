@@ -66,6 +66,9 @@
             <td>{{user.auth_type | title}}</td>
             <td>{{"Administrator" if user.administrator else "User"}}</td>
             <td style="display: flex; justify-content: space-evenly;">
+              <a class="btn btn-primary user-button" href="/admin/edit_user/{{user.user_id}}">
+                <img src="/static/img/tools.svg"/>
+              </a>
               <button class="btn user-button lock-button" id="lockButton-{{user.user_id}}" data-user-id="{{user.user_id}}" data-locked="{{user.locked | int}}">
                 <img id="lockButtonIcon-{{user.user_id}}"/>
               </button>
