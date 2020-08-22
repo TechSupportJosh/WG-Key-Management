@@ -217,6 +217,10 @@ def admin_lock_account():
         }), 400
 
     request_user.locked = not request_user.locked if lock_operation == "toggle" else (lock_operation == "lock") # If lock operation is lock, then set locked to true, otherwise unlock them (set to false)
+
+    # Also set cookie_auth_expiry to ensure users that are already logged in are invalidated
+    request_user.cookie_auth_expiry = datetime.datetime.fromtimestamp(0)
+
     db.session.commit()
 
     return jsonify({
