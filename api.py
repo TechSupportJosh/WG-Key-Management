@@ -2,7 +2,9 @@ from flask import Blueprint, render_template, session, url_for, flash, redirect,
 from models import User, KeyEntry, ConnectionRequest, FCMDevice
 from app import db, app, csrf
 from pyfcm import FCMNotification
+
 import datetime
+import utils
 
 api = Blueprint("api", __name__, url_prefix="/api")
 push_service = FCMNotification(api_key=app.config["FCM_API_KEY"])
@@ -106,7 +108,7 @@ def api_connection_request():
 @api.route("/fcm_register", methods=["POST"])
 @csrf.exempt
 def firebase_cm_register():
-    user = session.get("user")
+    user = utils.get_user(request.cookies)
 
     # Check the user is authenticated
     if user is None:
@@ -163,10 +165,10 @@ def firebase_cm_register():
 
 @api.route("/lock_account", methods=["POST"])
 def admin_lock_account():
-    user = session.get("user")
+    user = utils.get_user(request.cookies)
 
     # If the user isn't logged in or an administrator, return Unauthorised, 401
-    if user is None or not user["is_admin"]:
+    if user is None or not user.administrator:
         return jsonify({
             "success": False,
             "message": "Unauthorised"
@@ -210,7 +212,7 @@ def admin_lock_account():
         }), 404
 
     # Check the user isn't locking themselves
-    if request_user.user_id == user["id"]:
+    if request_user.user_id == user.user_id:
         return jsonify({
             "success": False,
             "message": "Cannot lock yourself"
@@ -230,10 +232,10 @@ def admin_lock_account():
 
 @api.route("/delete_account", methods=["POST"])
 def admin_delete_account():
-    user = session.get("user")
+    user = utils.get_user(request.cookies)
 
     # If the user isn't logged in or an administrator, return Unauthorised, 401
-    if user is None or not user["is_admin"]:
+    if user is None or not user.administrator:
         return jsonify({
             "success": False,
             "message": "Unauthorised"
@@ -268,7 +270,7 @@ def admin_delete_account():
         }), 404
 
     # Check the user isn't deleting themselves
-    if request_user.user_id == user["id"]:
+    if request_user.user_id == user.user_id:
         return jsonify({
             "success": False,
             "message": "Cannot lock yourself"
@@ -297,10 +299,10 @@ def admin_delete_account():
 # This endpoint is NOT used when a user navigates to /revoke_key
 @api.route("/revoke_key", methods=["POST"])
 def admin_revoke_key():
-    user = session.get("user")
+    user = utils.get_user(request.cookies)
 
     # If the user isn't logged in or an administrator, return Unauthorised, 401
-    if user is None or not user["is_admin"]:
+    if user is None or not user.administrator:
         return jsonify({
             "success": False,
             "message": "Unauthorised"
@@ -338,7 +340,7 @@ def admin_revoke_key():
 
     # Check the user isn't another administrator
     # TODO: Should there be another administraotr role that has ultimate power?
-    if key_owner.administrator and key_owner.user_id != user["id"]:
+    if key_owner.administrator and key_owner.user_id != user.user_id:
         return jsonify({
             "success": False,
             "message": "Cannot delete an administrator's keys"
