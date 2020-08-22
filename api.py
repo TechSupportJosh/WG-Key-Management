@@ -137,7 +137,7 @@ def firebase_cm_register():
         }), 400
 
     # While we're here, clear out old tokens that are no longer valid...
-    devices = FCMDevice.query.filter(FCMDevice.device_owner == user["id"]).all()
+    devices = FCMDevice.query.filter(FCMDevice.device_owner == user.user_id).all()
 
     # Device_tokens is in the form device_token:FCMDevice
     device_tokens = {}
@@ -150,7 +150,7 @@ def firebase_cm_register():
         # Check whether the new device is a valid ID
         if len(push_service.clean_registration_ids([request_data["device_token"]])):
             # It is a valid token, add it to the database
-            FCM_device = FCMDevice(user["id"], request_data["device_token"])
+            FCM_device = FCMDevice(user.user_id, request_data["device_token"])
             db.session.add(FCM_device)
 
     # Now take the list of device_tokens keys and pass it to push service to validate tokens
