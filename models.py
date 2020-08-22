@@ -32,12 +32,25 @@ class User(db.Model):
     # If the account is locked, the user will not be able to log in
     locked = Column(Boolean, default=False)
 
+    # The value inside a cookie that is used to authenticate the user (128 bytes base64 encoded)
+    cookie_auth = Column(String(172))
+    
+    # The time this value above expires
+    cookie_auth_expiry = Column(DateTime)
+
+    # Last logged in time of the user
+    last_logged_in_time = Column(DateTime)
+
     def __init__(self, unique_id, name, auth_type, administrator=False, locked=False):
         self.unique_id = unique_id
         self.name = name
         self.auth_type = auth_type
         self.administrator = administrator
         self.locked = False
+
+        # When a user is initialised, ensure the cookie auth expiry time is set to zero
+        # This ensures that a user that has never been logged into before can be logged in using a cookie_auth of ""
+        self.cookie_auth_expiry = datetime.datetime.fromtimestamp(0)
 
 class KeyEntry(db.Model):
     __tablename__ = "keys"

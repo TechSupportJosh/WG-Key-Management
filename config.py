@@ -17,6 +17,9 @@ FCM_API_KEY = os.getenv("FCM_API_KEY")
 # Database URI
 SQLALCHEMY_DATABASE_URI = "sqlite:////tmp/test.db"
 
+# How long the user will remain logged in for in seconds
+LOGGED_IN_DURATION = 3600
+
 # Supported OAUTH types
 SUPPORTED_AUTH_TYPES = ["google"]
 
