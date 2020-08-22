@@ -14,6 +14,10 @@ TWITTER_CLIENT_SECRET = os.getenv('TWITTER_CLIENT_SECRET')
 # Google Firebase Cloud Messaging configuration
 FCM_API_KEY = os.getenv("FCM_API_KEY")
 
+# A random string that allows requests to /api/connection_request
+# This value must be sent the connection request handler via the header X-Authenticate
+CONNECTION_REQUEST_SECRET = os.getenv("CONNECTION_REQUEST_SECRET") or os.urandom(32)
+
 # Database URI
 SQLALCHEMY_DATABASE_URI = "sqlite:////tmp/test.db"
 

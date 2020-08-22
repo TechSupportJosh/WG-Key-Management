@@ -12,7 +12,13 @@ push_service = FCMNotification(api_key=app.config["FCM_API_KEY"])
 @api.route("/connection_request", methods=["POST"])
 @csrf.exempt
 def api_connection_request():
-    # TODO: Add authentication to only allow the WG-Proxy access to this endpoint
+    auth_value = request.headers.get("X-Authentication", None)
+
+    # Check the request has a X-Authentication header and it matches CONNECTION_REQUEST_SECRET
+    if auth_value is None or auth_value != app.config["CONNECTION_REQUEST_SECRET"]:
+        return jsonify({
+            "message": "Unauthorised"
+        }), 401
 
     # Check whether the request is json
     if not request.is_json:
