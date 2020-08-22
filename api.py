@@ -50,6 +50,13 @@ def api_connection_request():
             "message": "Key owner could not be found"
         }), 404
 
+    # If the user's account is locked, do not check for a connection request
+    if key_owner.locked:
+        # Owner of this key's account is locked
+        return jsonify({
+            "message": "Key owner's account is locked"
+        })
+        
     # Now check whether there is an existing connection request for this key
     connection_request = ConnectionRequest.query.filter(ConnectionRequest.key_entry_id == key_entry.key_id).first()
 
