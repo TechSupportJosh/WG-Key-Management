@@ -1,4 +1,7 @@
 # Wireguard Key Management
+
+**This project is a proof of concept and should not be used in a production environment.**
+
 This project is a Flask application that allows management of keys by users for a Wireguard VPN system. Users can log in using popular OAuth methods such as Google and Twitter and add public keys to a system's Wireguard configuration without interaction from system administrators.
 
 In addition to this, built into the application is a method of requiring authentication before allowing connection to Wireguard. This is done via "Connection Requests", where the Wireguard service will send a request to the application to check whether the user has accepted the connection request. This requires the user to have logged in via their OAuth account and accept the connection request, before the user can connect. This adds another method of authentication to the VPN in addition to their private key.
