@@ -1,6 +1,7 @@
 from flask import Flask, url_for, session, request, send_from_directory
 from flask import render_template, redirect, abort, url_for, flash, Markup
 from authlib.integrations.flask_client import OAuth
+from authlib.common.errors import AuthlibBaseError
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_
 from flask_wtf.csrf import CSRFProtect
@@ -302,9 +303,10 @@ def login(name):
     # Initialise the oauth client based on the name passed (google, twitter etc.)
     client = oauth.create_client(name)
     
-    # If no client can be found with that name, return 404
+    # If no client can be found with that name, display error message
     if not client:
-        abort(404)
+        flash("Please try another login provider!", "danger")
+        return redirect(url_for("login_page"))
 
     # Retrieve the redirect URI
     redirect_uri = url_for("auth", name=name, _external=True)
@@ -318,12 +320,18 @@ def auth(name):
     # Initialise the oauth client based on the name passed (google, twitter etc.)
     client = oauth.create_client(name)
     
-    # If no client can be found with that name, return 404
+    # If no client can be found with that name, display error message
     if not client:
-        abort(404)
+        flash("Please try another login provider!", "danger")
+        return redirect(url_for("login_page"))
 
     # Authorize our access token of our login
-    token = client.authorize_access_token()
+    try:
+        token = client.authorize_access_token()
+    except AuthlibBaseError:
+        flash("Something went wrong, please try again.", "danger")
+        return redirect(url_for("login_page"))
+
     # If our token has id_token in it, retrieve our user information from this token
     if "id_token" in token:
         user = client.parse_id_token(token)
