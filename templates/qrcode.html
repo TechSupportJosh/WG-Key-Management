@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<meta name="description" content="">
+		<meta name="author" content="">
+		<link rel="icon" href="/static/img/favicon.ico">
+
+		<title>Add Key</title>
+
+		<!-- Bootstrap core CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+		<!-- Custom styles for this template -->
+		<link href="/static/css/add_key.css" rel="stylesheet">
+	</head>
+
+	<body class="text-center">
+
+        <!-- These lines just get flashed messages and render them at the top of the page -->
+        <!-- This means error messages can be created and displayed using the flash() function -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{category}}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <img src="{{qrcode(SQRL_URL)}}"/>
+
+        <a href="{{SQRL_URL}}"/>Test</a>
+	</body>
+</html>

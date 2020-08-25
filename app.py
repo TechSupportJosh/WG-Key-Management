@@ -5,12 +5,15 @@ from authlib.common.errors import AuthlibBaseError
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_
 from flask_wtf.csrf import CSRFProtect
+from flask_qrcode import QRcode
 
 import os
 import datetime
 import re
 import json
 import base64
+import random
+import sqrlserver
 
 # Initialise flask application
 app = Flask(__name__)
@@ -45,6 +48,9 @@ oauth.register(
 
 # Initialise CSRF protection
 csrf = CSRFProtect(app)
+
+# Initialise QR code
+qrcode = QRcode(app)
 
 # Register blueprints
 from admin import admin
@@ -314,6 +320,41 @@ def login(name):
     # Then redirect to the external login page with our redirect_uri
     return client.authorize_redirect(redirect_uri)
 
+SQRL_NUT = sqrlserver.Nut(app.config["SQRL_KEY"])
+SQRL_COUNTER = random.randint(100,10000)
+SQRL_URL = sqrlserver.Url("server url", "VPN Management")
+
+@app.route("/login/sqrl")
+def login_sqrl():
+    global SQRL_COUNTER
+    global SQRL_URL
+    # Generate new URL
+    SQRL_COUNTER += 1
+
+    nut_string = SQRL_NUT.generate(request.remote_addr, counter=SQRL_COUNTER)
+    nut_string_qr = nut_string.toString("qr")
+
+    return render_template("qrcode.html", SQRL_URL=SQRL_URL.generate(url_for("auth_sqrl"), nut=SQRL_NUT))
+
+@app.route("/auth/sqrl", methods=["POST"])
+@csrf.exempt
+def auth_sqrl():
+    global SQRL_COUNTER
+    request_params = {
+        "nut": request.args.get("nut"),
+        "client": request.form.get("client"),
+        "ids": request.form.get("ids"),
+        "server": request.form.get("server")
+    }
+    req = sqrlserver.Request(app.config["SQRL_KEY"], request_params)
+    print(request.form)
+    print(req.state)
+    req.handle()
+    print(req.state)
+    response = req.finalize(counter=SQRL_COUNTER)
+    print(req.state)
+    print(response.hmac(app.config["SQRL_KEY"]))
+    return response.toString()
 
 @app.route("/auth/<name>")
 def auth(name):

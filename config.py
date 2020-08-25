@@ -1,7 +1,10 @@
 import os
+import base64
 
 # Flask secret key
 SECRET_KEY = os.getenv("SECRET_KEY")
+
+SQRL_KEY = base64.b64decode(os.getenv("SQRL_KEY"))
 
 # Google OAuth client details
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
