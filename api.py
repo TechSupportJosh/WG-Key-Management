@@ -77,10 +77,10 @@ def api_connection_request():
 
             connection_request = None
         else:
-            # If the request hasn't expired, return whether the request has been authenticated
+            # If the request hasn't expired, return status code 200 (OK)
             return jsonify({
                 "authenticated": connection_request.is_authenticated()
-            }), 200
+            }), 200 if connection_request.is_authenticated() else 401
 
     # If connection request is None, then we can create a new request
     if connection_request is None:
@@ -109,7 +109,7 @@ def api_connection_request():
         # As the request has just been created, we can return authenticated as false
         return jsonify({
             "authenticated": False
-        }), 200
+        }), 401
 
 @api.route("/fcm_register", methods=["POST"])
 @csrf.exempt
