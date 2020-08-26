@@ -5,12 +5,14 @@ from authlib.common.errors import AuthlibBaseError
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_
 from flask_wtf.csrf import CSRFProtect
+from flask_qrcode import QRcode
 
 import os
 import datetime
 import re
 import json
 import base64
+import secrets
 
 # Initialise flask application
 app = Flask(__name__)
@@ -45,6 +47,9 @@ oauth.register(
 
 # Initialise CSRF protection
 csrf = CSRFProtect(app)
+
+# Initialise QRcode
+qrcode = QRcode(app)
 
 # Register blueprints
 from admin import admin
@@ -358,36 +363,93 @@ def auth(name):
         flash("This account has been locked. Please contact XYZ if you believe this is a mistake.", "danger")
         return redirect(url_for("login_page"))
 
-    # Attempt to get a redirect login, if there isn't a redirect redefined, use the home page.
-    redirect_url = session.pop("login_redirect", url_for("home_page"))
+    # Update database with otp values
+    db_user.otp_attempts = 0
+    db_user.otp_attempt_auth = secrets.token_urlsafe(32)
 
-    response = redirect(redirect_url)
-
-    # Update user in database with their cookie authentication
-    cookie_auth = utils.generate_cookie_auth_value()
-
-    # Create the dictionary that will be placed into the cookie
-    cookie_dict = {
-        "user_id": db_user.user_id,
-        "auth": cookie_auth
-    }
-
-    # Set the cookie for the session
-    # Our application has a max log in time in case the user edits the cookie
-    # Value of cookie is base64(json(cookie_dict))
-    response.set_cookie("auth", base64.b64encode(json.dumps(cookie_dict).encode()).decode())
-
-    # Update user with new cookie auth value + latest log in time
-    db_user.cookie_auth = cookie_auth
-    db_user.cookie_auth_expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=app.config["LOGGED_IN_DURATION"])
-    db_user.last_logged_in_time = datetime.datetime.utcnow()
-    
-    # Save to the database
     db.session.commit()
 
-    # Once we've been authorised, redirect to our home page
-    return response
+    return redirect(url_for("two_factor", user_id=db_user.user_id, otp_auth=db_user.otp_attempt_auth))
 
+@app.route("/twofactor/<user_id>/<otp_auth>", methods=["GET", "POST"])
+def two_factor(user_id, otp_auth):
+    # Check whether the otp_auth matches the otp_attempt_auth for the user_id in database
+    db_user = User.query.filter(and_(User.user_id == user_id, User.otp_attempt_auth == otp_auth)).first()
+
+    if db_user is None:
+        flash("You must be logged in to access this page.", "danger")
+
+        # Redirect to the login page
+        return redirect(url_for("login_page"))
+
+    # Retrieve user ID from session
+    if request.method == "GET":
+
+        if db_user.otp_attempts >= app.config["MAXIMUM_OTP_ATTEMPTS"]:
+            # Request the user to re-login again
+            db_user.otp_attempts = 0
+            db_user.otp_attempt_auth = secrets.token_urlsafe(32)
+
+            db.session.commit()
+
+            flash("Too many failed attempts for OTP, please log in again.", "danger")
+
+            return redirect(url_for("login_page"))
+
+        # Pass whether the user has setup OTP and if they haven't, also pass the secret
+        return render_template("two_factor.html", user=db_user), 200, {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
+    else:
+        # Verify OTP
+        if not db_user.verify_totp(request.form.get("otp_code")):
+            # Add one to attempts
+            db_user.otp_attempts += 1
+
+            db.session.commit()
+
+            flash("Incorrect code entered, please try again.", "danger")
+
+            return redirect(url_for("two_factor", user_id=user_id, otp_auth=otp_auth))
+        else:
+            # Log the user in 
+
+            # Attempt to get a redirect login, if there isn't a redirect redefined, use the home page.
+            redirect_url = session.pop("login_redirect", url_for("home_page"))
+
+            response = redirect(redirect_url)
+
+            # Update user in database with their cookie authentication
+            cookie_auth = utils.generate_cookie_auth_value()
+
+            # Create the dictionary that will be placed into the cookie
+            cookie_dict = {
+                "user_id": db_user.user_id,
+                "auth": cookie_auth
+            }
+
+            # Set the cookie for the session
+            # Our application has a max log in time in case the user edits the cookie
+            # Value of cookie is base64(json(cookie_dict))
+            response.set_cookie("auth", base64.b64encode(json.dumps(cookie_dict).encode()).decode())
+
+            # Update user with new cookie auth value + latest log in time
+            db_user.cookie_auth = cookie_auth
+            db_user.cookie_auth_expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=app.config["LOGGED_IN_DURATION"])
+            db_user.last_logged_in_time = datetime.datetime.utcnow()
+            
+            # Wipe OTP attempts and set is_otp_setup to True as they've now logged in
+            db_user.is_otp_setup = True
+            db_user.otp_attempts = 0
+            db_user.otp_attempt_auth = secrets.token_urlsafe(32)
+            
+            # Save to the database
+            db.session.commit()
+
+            # Once we've been authorised, redirect to our home page
+            return response
 
 @app.route("/logout")
 def logout():
@@ -395,7 +457,7 @@ def logout():
     response = redirect(url_for("login_page"))
 
     # Expire the cookie
-    response.set_cookie(auth, max_age=0)
+    response.set_cookie("auth", max_age=0)
 
     # Attempt to retrieve the user they're currently logged in as
     user = utils.get_user(request.cookies)

@@ -14,6 +14,9 @@ TWITTER_CLIENT_SECRET = os.getenv('TWITTER_CLIENT_SECRET')
 # Google Firebase Cloud Messaging configuration
 FCM_API_KEY = os.getenv("FCM_API_KEY")
 
+# Issuer of the OTP codes
+OTP_ISSUER = "Wireguard Key Manager"
+
 # A random string that allows requests to /api/connection_request
 # This value must be sent the connection request handler via the header X-Authenticate
 CONNECTION_REQUEST_SECRET = os.getenv("CONNECTION_REQUEST_SECRET") or os.urandom(32)
@@ -23,6 +26,9 @@ SQLALCHEMY_DATABASE_URI = "sqlite:////tmp/test.db"
 
 # How long the user will remain logged in for in seconds
 LOGGED_IN_DURATION = 3600
+
+# How many OTP attempts the user is allowed before they are kicked out and must login again
+MAXIMUM_OTP_ATTEMPTS = 3
 
 # Supported OAUTH types
 SUPPORTED_AUTH_TYPES = ["google"]

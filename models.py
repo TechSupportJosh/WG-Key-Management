@@ -1,10 +1,13 @@
 from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String,
                         func)
 
-from app import db
+from app import db, app
 
 import datetime
 import pytz
+import onetimepass
+import base64
+import secrets
 
 # https://stackoverflow.com/a/13287083
 def utc_to_local(utc_dt):
@@ -41,6 +44,20 @@ class User(db.Model):
     # Last logged in time of the user
     last_logged_in_time = Column(DateTime)
 
+    # OTP secret for the user
+    otp_secret = Column(String(16))
+
+    # Stores whether the OTP has been set up for the user
+    is_otp_setup = Column(Boolean)
+
+    # OTP attempts since last login
+    otp_attempts = Column(Integer)
+
+    # After a user has logged in, they get a temporary random string which is used to authenticate them
+    # This ensures that a user has logged in before attempting to access the two factor page, without needing
+    # to write to their cookies
+    otp_attempt_auth = Column(String(64))
+
     def __init__(self, unique_id, name, auth_type, administrator=False, locked=False):
         self.unique_id = unique_id
         self.name = name
@@ -52,6 +69,26 @@ class User(db.Model):
         # This ensures that a user that has never been logged into before can be logged in using a cookie_auth of ""
         self.cookie_auth_expiry = datetime.datetime.fromtimestamp(0)
 
+        # Also initialise the OTP secret for the user
+        self.is_otp_setup = False
+        self.otp_secret = base64.b32encode(os.urandom(10)).decode('utf-8')
+        self.otp_attempts = 0
+        # Initialise it with a random auth string, to prevent someone accessing the page with an empty auth string
+        self.otp_attempt_auth = secrets.token_urlsafe(32)
+    
+    def get_totp_uri(self):
+        return "otpauth://totp/{otp_issuer}:{unique_id}?secret={otp_secret}&issuer={otp_issuer}".format(
+            otp_issuer=app.config["OTP_ISSUER"],
+            otp_secret=self.otp_secret,
+            unique_id=self.unique_id
+        )
+
+    def verify_totp(self, token):
+        return onetimepass.valid_totp(token, self.otp_secret)
+
+    def get_formatted_otp_token(self):
+        return "  ".join([self.otp_secret[i:i+4] for i in range(0, len(self.otp_secret), 4)])
+        
 class KeyEntry(db.Model):
     __tablename__ = "keys"
     __table_args__ = {'sqlite_autoincrement': True}

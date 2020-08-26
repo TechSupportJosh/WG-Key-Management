@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<meta name="description" content="">
+		<meta name="author" content="">
+		<link rel="icon" href="/static/img/favicon.ico">
+
+		<title>Two Factor</title>
+
+		<!-- Bootstrap core CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+		<!-- Custom styles for this template -->
+		<link href="/static/css/two_factor.css" rel="stylesheet">
+	</head>
+
+	<body class="text-center">
+
+    <!-- These lines just get flashed messages and render them at the top of the page -->
+    <!-- This means error messages can be created and displayed using the flash() function -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{category}}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form id="twoFactorForm" method="POST">
+      <h1 class="h3 mb-3 font-weight-normal">Enter your 2FA code</h1>
+
+      {% if not user.is_otp_setup %}
+      <div class="mb-4">
+        <div>
+          To use this application, you need to setup a OTP client to login and accept connection requests.<br><br>
+          <p class="text-left">
+            1. Search "authenticator" in your app store. We recommend Authy or Google Authenticator.<br>
+            2. Download the app.<br>
+            3. Scan the QR code below to add your account to the app.<br>
+            4. Verify that the pairing is successful by entering the code displayed on your app below.
+          </p>
+        </div>
+        <img id="qrcode" src="{{ qrcode(user.get_totp_uri()) }}"/>
+        
+        <div class="mt-4">
+          <a id="showToken" href="#">QR code not scanning?</a>
+          <div id="otpToken" class="mt-2" style="display: none;">
+            <p>Enter this code into your OTP client:<br>
+              <strong>{{ user.get_formatted_otp_token() }}</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div class="form-group">
+        <label for="otpCode">OTP Code</label>
+        <input type="text" class="form-control" id="otpCode" name="otp_code" aria-describedby="otpCodeHelp" maxlength="6">
+        <small id="otpCodeHelp" class="form-text text-muted">Please enter your OTP code from your app.</small>
+      </div>
+      <div class="row">
+        <div class="col-12">
+          <button type="submit" class="btn btn-success">Submit</button>
+        </div>
+      </div>
+    </form>
+    
+    <script>
+      const otpToken = document.getElementById("otpToken");
+      document.getElementById("showToken").addEventListener("click", function() {
+        otpToken.style.display = otpToken.style.display == "none" ? "" : "none";
+      });
+    </script>
+	</body>
+</html>
