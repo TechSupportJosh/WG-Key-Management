@@ -98,7 +98,7 @@
         {% for key in keys %}
           <li class="list-group-item">
             <div class="row">
-              <div class="col-9">
+              <div class="col-8">
                 <h5>
                   <strong>{{key.readable_name}}</strong>
                   {% if key.is_expired() %}
@@ -109,7 +109,10 @@
                   Expiry Date: {{key.expiry_date_string()}}
                 </p>
               </div>
-              <div class="col-3 d-flex align-items-center justify-content-center">
+              <div class="col-4 d-flex align-items-center justify-content-between">
+                <div>
+                  <a class="btn btn-primary" href="/renew_key/{{key.key_id}}">Renew Access</a>
+                </div>
                 <div>
                   <a class="btn btn-danger" href="/revoke_key/{{key.key_id}}">Revoke Access</a>
                 </div>

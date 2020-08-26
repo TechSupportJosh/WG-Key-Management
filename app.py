@@ -158,6 +158,61 @@ def add_key_page():
         flash(f"Successfully added {key_entry.readable_name}!", "success")
         return redirect(url_for("home_page"))
 
+
+@app.route("/renew_key/<key_id>", methods=["GET", "POST"])
+@login_required
+def renew_key_page(key_id):
+    # Check whether the key entered exists
+    key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == g.user.user_id)).first()
+
+    if key_entry is None:
+        # Display error message and return to home page
+        flash("Failed to renew this key!", "danger")
+        return redirect(url_for("home_page"))
+
+    # If the request is GET, return the form to add a new key
+    if request.method == "GET":
+        return render_template("renew_key.html", key=key_entry, expiry_times=app.config["EXPIRY_TIMES"])
+    else:
+        # Handle removing the key
+        # Check that the key passed in the body is still valid
+        key_id = request.form.get("key_id", 0)
+
+        # Check whether the key entered exists
+        key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == g.user.user_id)).first()
+
+        if key_entry is None:
+            # Display error message and return to home page
+            flash("Failed to renew this key!", "danger")
+            return redirect(url_for("home_page"))
+
+        # Validate expiry time
+        expiry_time_seconds = request.form.get("expiry_time", "0")
+        try:
+            expiry_time_seconds = int(expiry_time_seconds)
+        except ValueError:
+            # Failed to convert to integer, add error
+            # This will only happen if the user modifies the webpage/request
+            flash("Expiry time must be one of the options listed.", "danger")
+
+            return redirect(url_for("renew_key_page", key_id=key_id))
+        else:
+            # If that was successful, check the expiry time is one of the values listed in the config
+            if expiry_time_seconds not in app.config["EXPIRY_TIMES"].values():
+                flash("Expiry time must be one of the options listed.", "danger")
+
+                return redirect(url_for("renew_key_page", key_id=key_id))
+        
+        # Convert expiry date to a UTC timestamp
+        expiry_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=expiry_time_seconds)
+        
+        # Everything is good, update the key in the database
+        key_entry.expiry_date = expiry_date
+        db.session.commit()
+
+        flash(f"Successfully renewed {key_entry.readable_name}!", "success")
+        return redirect(url_for("home_page"))
+
 @app.route("/revoke_key/<key_id>", methods=["GET", "POST"])
 @login_required
 def revoke_key_page(key_id):
