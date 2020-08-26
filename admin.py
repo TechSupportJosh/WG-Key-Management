@@ -8,62 +8,23 @@ import csv
 import os
 import utils
 
+from decorators import admin_required
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
 @admin.route("/")
+@admin_required
 def admin_home_page():
-    user = utils.get_user(request.cookies)
-
-    # Check whether this user is an administrator
-    if user is None:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Otherwise, redirect to the login page
-        return redirect(url_for("login_page"))
-    elif not user.administrator:
-        flash("You are not authorised to access this page.", "danger")
-
-        # Redirect to the user page
-        return redirect(url_for("home_page"))
-    
     users = User.query.filter().all()
     
     return render_template("admin_home.html", users=users)
 
 @admin.route("/add_users")
+@admin_required
 def admin_add_users():
-    user = utils.get_user(request.cookies)
-
-    # Check whether this user is an administrator
-    if user is None:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Otherwise, redirect to the login page
-        return redirect(url_for("login_page"))
-    elif not user.administrator:
-        flash("You are not authorised to access this page.", "danger")
-
-        # Redirect to the user page
-        return redirect(url_for("home_page"))
-    
     return render_template("admin_add_users.html", SUPPORTED_AUTH_TYPES=app.config["SUPPORTED_AUTH_TYPES"])
 
 @admin.route("/add_users_form", methods=["POST"])
 def admin_add_users_form():
-    user = utils.get_user(request.cookies)
-
-    # Check whether this user is an administrator
-    if user is None:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Otherwise, redirect to the login page
-        return redirect(url_for("login_page"))
-    elif not user.administrator:
-        flash("You are not authorised to access this page.", "danger")
-
-        # Redirect to the user page
-        return redirect(url_for("home_page"))
-    
     # Check form parameters
     unique_id = request.form.get("unique_id", None)
     name = request.form.get("name", None)
@@ -92,21 +53,8 @@ def admin_add_users_form():
     return redirect(url_for("admin.admin_add_users"))
 
 @admin.route("/add_users_csv", methods=["POST"])
+@admin_required
 def admin_add_users_csv():
-    user = utils.get_user(request.cookies)
-
-    # Check whether this user is an administrator
-    if user is None:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Otherwise, redirect to the login page
-        return redirect(url_for("login_page"))
-    elif not user.administrator:
-        flash("You are not authorised to access this page.", "danger")
-
-        # Redirect to the user page
-        return redirect(url_for("home_page"))
-    
     # Check whether file has been passed
     if "csv_file" not in request.files:
         flash("Please upload a valid CSV file.", "danger")
@@ -178,21 +126,8 @@ def admin_add_users_csv():
     return redirect(url_for("admin.admin_add_users"))
 
 @admin.route("/edit_user/<user_id>", methods=["GET", "POST"])
+@admin_required
 def admin_edit_user(user_id):
-    user = utils.get_user(request.cookies)
-
-    # Check whether this user is an administrator
-    if user is None:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Otherwise, redirect to the login page
-        return redirect(url_for("login_page"))
-    elif not user.administrator:
-        flash("You are not authorised to access this page.", "danger")
-
-        # Redirect to the user page
-        return redirect(url_for("home_page"))
-    
     # Check the user exists
     request_user = User.query.filter(User.user_id == user_id).first()
 

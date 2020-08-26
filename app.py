@@ -1,4 +1,4 @@
-from flask import Flask, url_for, session, request, send_from_directory
+from flask import Flask, url_for, session, request, send_from_directory, g
 from flask import render_template, redirect, abort, url_for, flash, Markup
 from authlib.integrations.flask_client import OAuth
 from authlib.common.errors import AuthlibBaseError
@@ -59,36 +59,27 @@ app.register_blueprint(api)
 
 # Import utils functions after db has been initialised
 import utils
+from decorators import login_required
 
 # The index page consists of the login screen
 @app.route("/")
 def login_page():
-    user = utils.get_user(request.cookies)
-
     # If the user is not logged in, display the sign in buttons
-    if not user:
+    if not g.user:
         return render_template("index.html")
     else:
         # Otherwise, redirect to the logged in home page
         return redirect(url_for("home_page"))
 
 @app.route("/home")
+@login_required
 def home_page():
-    user = utils.get_user(request.cookies)
-
-    # Check whether the user is logged in
-    if not user:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Redirect to the login page
-        return redirect(url_for("login_page"))
-
     # If the user is logged in, display the home page
     # Retrieve the keys for this user
-    keys = KeyEntry.query.filter(KeyEntry.key_owner == user.user_id).all()
+    keys = KeyEntry.query.filter(KeyEntry.key_owner == g.user.user_id).all()
     
     # Retrieve connection requests for this user
-    connection_requests = ConnectionRequest.query.filter(ConnectionRequest.key_owner == user.user_id).all()
+    connection_requests = ConnectionRequest.query.filter(ConnectionRequest.key_owner == g.user.user_id).all()
 
     # Remove expired requests
     connection_requests = list(filter(lambda request: not request.is_expired(), connection_requests))
@@ -98,19 +89,11 @@ def home_page():
     for con_request in connection_requests:
         connection_requests_times.append({"id": con_request.req_id, "expiryTime": utils.dt2ts(con_request.expiry_date)})
 
-    return render_template("home.html", user=user, keys=keys, connection_requests=connection_requests, connection_requests_times=connection_requests_times, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
+    return render_template("home.html", user=g.user, keys=keys, connection_requests=connection_requests, connection_requests_times=connection_requests_times, WIREGUARD_MAX_KEYS=app.config["WIREGUARD_MAX_KEYS"])
 
 @app.route("/add_key", methods=["GET", "POST"])
+@login_required
 def add_key_page():
-    user = utils.get_user(request.cookies)
-
-    # Check whether the user is logged in
-    if not user:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Redirect to the login page
-        return redirect(url_for("login_page"))
-
     # If the request is GET, return the form to add a new key
     if request.method == "GET":
         return render_template("add_key.html", expiry_times=app.config["EXPIRY_TIMES"])
@@ -144,7 +127,7 @@ def add_key_page():
                 errors.append("Expiry time must be one of the options listed.")
         
         # Check that they don't have more than WIREGUARD_MAX_KEYS already
-        existing_keys = KeyEntry.query.filter(KeyEntry.key_owner == user.user_id).count()
+        existing_keys = KeyEntry.query.filter(KeyEntry.key_owner == g.user.user_id).count()
 
         if existing_keys >= app.config["WIREGUARD_MAX_KEYS"]:
             errors.append(f"You cannot add a new key - you already have {existing_keys} keys added.")
@@ -166,7 +149,7 @@ def add_key_page():
         expiry_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=expiry_time_seconds)
         
         # Everything is good, add the key to the database
-        key_entry = KeyEntry(public_key, user.user_id, readable_name, expiry_date)
+        key_entry = KeyEntry(public_key, g.user.user_id, readable_name, expiry_date)
         db.session.add(key_entry)
         db.session.commit()
 
@@ -176,18 +159,10 @@ def add_key_page():
         return redirect(url_for("home_page"))
 
 @app.route("/revoke_key/<key_id>", methods=["GET", "POST"])
+@login_required
 def revoke_key_page(key_id):
-    user = utils.get_user(request.cookies)
-
-    # Check whether the user is logged in
-    if not user:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Redirect to the login page
-        return redirect(url_for("login_page"))
-
     # Check whether the key entered exists
-    key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == user.user_id)).first()
+    key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == g.user.user_id)).first()
 
     if key_entry is None:
         # Display error message and return to home page
@@ -203,7 +178,7 @@ def revoke_key_page(key_id):
         key_id = request.form.get("key_id", 0)
 
         # Check whether the key entered exists
-        key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == user.user_id)).first()
+        key_entry = KeyEntry.query.filter(and_(KeyEntry.key_id == key_id, KeyEntry.key_owner == g.user.user_id)).first()
 
         if key_entry is None:
             # Display error message and return to home page
@@ -221,19 +196,11 @@ def revoke_key_page(key_id):
         return redirect(url_for("home_page"))
 
 @app.route("/view_connection_request/<req_id>", methods=["GET", "POST"])
+@login_required
 def view_connection_request_page(req_id):
-    user = utils.get_user(request.cookies)
-
-    # Check whether the user is logged in
-    if not user:
-        flash("You must be logged in to access this page.", "danger")
-
-        # Redirect to the login page
-        return redirect(url_for("login_page"))
-
     # Now, the user must have logged in recently before accessing this page
     # TODO: Move 300 seconds to config
-    if user.last_logged_in_time > datetime.datetime.utcnow() + datetime.timedelta(seconds=300):
+    if g.user.last_logged_in_time > datetime.datetime.utcnow() + datetime.timedelta(seconds=300):
         # They haven't logged in recently enough, request that they login again
         flash("In order to access this page, you must log in again.", "info")
 
@@ -244,7 +211,7 @@ def view_connection_request_page(req_id):
         return redirect(url_for("login_page"))
 
     # Check whether the connection request exists
-    connection_request = ConnectionRequest.query.filter(and_(ConnectionRequest.req_id == req_id, ConnectionRequest.key_owner == user.user_id)).first()
+    connection_request = ConnectionRequest.query.filter(and_(ConnectionRequest.req_id == req_id, ConnectionRequest.key_owner == g.user.user_id)).first()
 
     if connection_request is None:
         # Display error message and return to home page
@@ -264,7 +231,7 @@ def view_connection_request_page(req_id):
         req_id = request.form.get("req_id", 0)
 
         # Check whether the request entered exists
-        connection_request = ConnectionRequest.query.filter(and_(ConnectionRequest.req_id == req_id, ConnectionRequest.key_owner == user.user_id)).first()
+        connection_request = ConnectionRequest.query.filter(and_(ConnectionRequest.req_id == req_id, ConnectionRequest.key_owner == g.user.user_id)).first()
 
         if connection_request is None:
             # Display error message and return to home page
@@ -459,12 +426,9 @@ def logout():
     # Expire the cookie
     response.set_cookie("auth", max_age=0)
 
-    # Attempt to retrieve the user they're currently logged in as
-    user = utils.get_user(request.cookies)
-    
-    if user:
+    if g.user:
         # Remove the cookie auth value and set the expiry time to 0 (way in the past!)
-        user.cookie_auth_expiry = datetime.datetime.fromtimestamp(0)
+        g.user.cookie_auth_expiry = datetime.datetime.fromtimestamp(0)
 
         db.session.commit()
 
