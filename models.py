@@ -8,6 +8,8 @@ import pytz
 import onetimepass
 import base64
 import secrets
+import os
+import urllib.parse
 
 # https://stackoverflow.com/a/13287083
 def utc_to_local(utc_dt):
@@ -78,7 +80,7 @@ class User(db.Model):
     
     def get_totp_uri(self):
         return "otpauth://totp/{otp_issuer}:{unique_id}?secret={otp_secret}&issuer={otp_issuer}".format(
-            otp_issuer=app.config["OTP_ISSUER"],
+            otp_issuer=urllib.parse.quote(app.config["OTP_ISSUER"]),
             otp_secret=self.otp_secret,
             unique_id=self.unique_id
         )
@@ -88,7 +90,7 @@ class User(db.Model):
 
     def get_formatted_otp_token(self):
         return "  ".join([self.otp_secret[i:i+4] for i in range(0, len(self.otp_secret), 4)])
-        
+    
 class KeyEntry(db.Model):
     __tablename__ = "keys"
     __table_args__ = {'sqlite_autoincrement': True}
