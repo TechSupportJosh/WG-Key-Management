@@ -309,11 +309,18 @@ def view_connection_request_page(req_id):
             return redirect(url_for("home_page"))
 
         if accept_clicked:
-            # They wish to accept the request, update the entry in the database and display a success message
-            connection_request.request_answered = True
-            connection_request.request_authenticated = True
+            # They wish to accept the request, send them to the two factor page
+            # Update database with otp values
+            g.user.otp_attempts = 0
+            g.user.otp_attempt_auth = secrets.token_urlsafe(32)
 
-            flash(f"Successfully accepted the connection request! Your Wireguard client will now be able to connect to the VPN.", "success")
+            db.session.commit()
+
+            flash("Please enter your OTP code to accept this connection request.", "primary")
+
+            session["twofactor_action"] = "connection_request_{}".format(req_id)
+
+            return redirect(url_for("two_factor", user_id=g.user.user_id, otp_auth=g.user.otp_attempt_auth))
         else:
             # They wish to deny the request, update the entry in the database and display a success message
             connection_request.request_answered = True
@@ -391,12 +398,19 @@ def auth(name):
 
     db.session.commit()
 
+    session["twofactor_action"] = "login"
+    
     return redirect(url_for("two_factor", user_id=db_user.user_id, otp_auth=db_user.otp_attempt_auth))
 
 @app.route("/twofactor/<user_id>/<otp_auth>", methods=["GET", "POST"])
 def two_factor(user_id, otp_auth):
     # Check whether the otp_auth matches the otp_attempt_auth for the user_id in database
     db_user = User.query.filter(and_(User.user_id == user_id, User.otp_attempt_auth == otp_auth)).first()
+
+    # The twofactor_action variable inside session stores what should happen after this user logs in
+    # DEFAULT: login = User should be logged in (add auth cookie etc.) 
+    # connection_request_X = Connection request with id X should be accepted 
+    action = session.get("twofactor_action", "login")
 
     if db_user is None:
         flash("You must be logged in to access this page.", "danger")
@@ -414,9 +428,14 @@ def two_factor(user_id, otp_auth):
 
             db.session.commit()
 
-            flash("Too many failed attempts for OTP, please log in again.", "danger")
+            if action == "login":
+                flash("Too many failed attempts for OTP, please log in again.", "danger")
 
-            return redirect(url_for("login_page"))
+                return redirect(url_for("login_page"))
+            elif action.startswith("connection_request_"):
+                flash("Too many failed attempts for OTP, please try again.", "danger")
+
+                return redirect(url_for("view_connection_request_page", req_id=action.replace("connection_request_", "")))
 
         # Pass whether the user has setup OTP and if they haven't, also pass the secret
         return render_template("two_factor.html", user=db_user), 200, {
@@ -432,45 +451,72 @@ def two_factor(user_id, otp_auth):
 
             db.session.commit()
 
-            flash("Incorrect code entered, please try again.", "danger")
+            # Only display this message if they have more attempts left
+            if db_user.otp_attempts < app.config["MAXIMUM_OTP_ATTEMPTS"]:
+                flash("Incorrect code entered, please try again.", "danger")
 
             return redirect(url_for("two_factor", user_id=user_id, otp_auth=otp_auth))
         else:
-            # Log the user in 
-
-            # Attempt to get a redirect login, if there isn't a redirect redefined, use the home page.
-            redirect_url = session.pop("login_redirect", url_for("home_page"))
-
-            response = redirect(redirect_url)
-
-            # Update user in database with their cookie authentication
-            cookie_auth = utils.generate_cookie_auth_value()
-
-            # Create the dictionary that will be placed into the cookie
-            cookie_dict = {
-                "user_id": db_user.user_id,
-                "auth": cookie_auth
-            }
-
-            # Set the cookie for the session
-            # Our application has a max log in time in case the user edits the cookie
-            # Value of cookie is base64(json(cookie_dict))
-            response.set_cookie("auth", base64.b64encode(json.dumps(cookie_dict).encode()).decode())
-
-            # Update user with new cookie auth value + latest log in time
-            db_user.cookie_auth = cookie_auth
-            db_user.cookie_auth_expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=app.config["LOGGED_IN_DURATION"])
-            db_user.last_logged_in_time = datetime.datetime.utcnow()
+            response = None
             
-            # Wipe OTP attempts and set is_otp_setup to True as they've now logged in
-            db_user.is_otp_setup = True
+            if action == "login":
+                # Log the user in 
+                # Attempt to get a redirect login, if there isn't a redirect redefined, use the home page.
+                redirect_url = session.pop("login_redirect", url_for("home_page"))
+
+                response = redirect(redirect_url)
+
+                # Update user in database with their cookie authentication
+                cookie_auth = utils.generate_cookie_auth_value()
+
+                # Create the dictionary that will be placed into the cookie
+                cookie_dict = {
+                    "user_id": db_user.user_id,
+                    "auth": cookie_auth
+                }
+
+                # Set the cookie for the session
+                # Our application has a max log in time in case the user edits the cookie
+                # Value of cookie is base64(json(cookie_dict))
+                response.set_cookie("auth", base64.b64encode(json.dumps(cookie_dict).encode()).decode())
+
+                # Update user with new cookie auth value + latest log in time
+                db_user.cookie_auth = cookie_auth
+                db_user.cookie_auth_expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=app.config["LOGGED_IN_DURATION"])
+                db_user.last_logged_in_time = datetime.datetime.utcnow()
+                
+                # Set OTP setup to true
+                db_user.is_otp_setup = True
+
+            elif action.startswith("connection_request_"):
+                response = redirect(url_for("home_page"))
+
+                req_id = int(action.replace("connection_request_", ""))
+
+                # Check whether the request entered exists
+                connection_request = ConnectionRequest.query.filter(and_(ConnectionRequest.req_id == req_id, ConnectionRequest.key_owner == g.user.user_id)).first()
+
+                if connection_request is None:
+                    flash("Failed to accept this connection request.", "danger")
+                elif connection_request.is_expired():
+                    flash("This connection request is expired", "danger")
+                else:
+                    # Connection request exists and isn't expired, now mark it as accepted
+                    connection_request.request_answered = True
+                    connection_request.request_authenticated = True
+
+                    flash(f"Successfully accepted the connection request! Your Wireguard client will now be able to connect to the VPN.", "success")
+
+            # Remove the twofactor action
+            session.pop("twofactor_action")
+
+            # Wipe OTP attempts
             db_user.otp_attempts = 0
             db_user.otp_attempt_auth = secrets.token_urlsafe(32)
             
-            # Save to the database
+            # Save changes to connection request/user
             db.session.commit()
 
-            # Once we've been authorised, redirect to our home page
             return response
 
 @app.route("/logout")
