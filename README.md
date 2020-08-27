@@ -15,3 +15,20 @@ The flow for connection requests looks something like this:
 5. The next time the Wireguard server sends a HTTP request, the application will send a payload containing `"authorised": true`, in which the Wireguard application will then accept the request and complete the handshake.
 
 The interception of the handshake packet can be done in a variety of ways such as a UDP proxy, which will inspect the packet and send the request on behalf of the Wireguard application, or running a custom Wireguard installation which sends the web request when handling the handshake.
+
+
+## Installation
+
+Requirements: 
+- Docker
+
+Pre-requisites:
+- Update `.env.dev` or `.env.prod` with the relevant API keys
+- Update `/app/static/js/firebase-config.js` with the FCM config
+
+Running development version (runs on port 5000):
+`sudo docker-compose -f docker-compose.yml up --build`
+
+Running live version (using gunicorn & nginx - runs on port 80):
+`sudo docker-compose -f docker-compose.prod.yml up --build`
+
