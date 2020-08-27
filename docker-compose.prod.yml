@@ -1,0 +1,22 @@
+version: '3.7'
+
+services:
+  web:
+    build:
+      context: ./app
+      dockerfile: Dockerfile.prod
+    volumes:
+      - ./app/:/usr/src/app/
+      - type: bind
+        source: /db
+        target: /usr/src/db/
+    expose:
+      - 5000
+    env_file:
+      - ./.env.prod
+  nginx:
+    build: ./nginx
+    ports:
+      - 80:80
+    depends_on:
+      - web

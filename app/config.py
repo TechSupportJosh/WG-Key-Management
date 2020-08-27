@@ -22,7 +22,7 @@ OTP_ISSUER = "Wireguard Key Manager"
 CONNECTION_REQUEST_SECRET = os.getenv("CONNECTION_REQUEST_SECRET") or os.urandom(32)
 
 # Database URI
-SQLALCHEMY_DATABASE_URI = "sqlite:////tmp/test.db"
+SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URI", "sqlite:////tmp/test.db")
 
 # How long the user will remain logged in for in seconds
 LOGGED_IN_DURATION = 3600
