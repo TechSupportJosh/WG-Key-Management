@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, url_for, flash, redirect, jsonify, request
+from flask import Blueprint, render_template, session, url_for, flash, redirect, jsonify, request, g
 from models import User, KeyEntry, ConnectionRequest, FCMDevice
 from app import db, app, csrf
 from pyfcm import FCMNotification
@@ -114,10 +114,8 @@ def api_connection_request():
 @api.route("/fcm_register", methods=["POST"])
 @csrf.exempt
 def firebase_cm_register():
-    user = utils.get_user(request.cookies)
-
     # Check the user is authenticated
-    if user is None:
+    if g.user is None:
         return jsonify({
             "message": "Unauthorised"
         }), 401
@@ -137,7 +135,7 @@ def firebase_cm_register():
         }), 400
 
     # While we're here, clear out old tokens that are no longer valid...
-    devices = FCMDevice.query.filter(FCMDevice.device_owner == user.user_id).all()
+    devices = FCMDevice.query.filter(FCMDevice.device_owner == g.user.user_id).all()
 
     # Device_tokens is in the form device_token:FCMDevice
     device_tokens = {}
@@ -150,7 +148,7 @@ def firebase_cm_register():
         # Check whether the new device is a valid ID
         if len(push_service.clean_registration_ids([request_data["device_token"]])):
             # It is a valid token, add it to the database
-            FCM_device = FCMDevice(user.user_id, request_data["device_token"])
+            FCM_device = FCMDevice(g.user.user_id, request_data["device_token"])
             db.session.add(FCM_device)
 
     # Now take the list of device_tokens keys and pass it to push service to validate tokens
@@ -171,10 +169,8 @@ def firebase_cm_register():
 
 @api.route("/lock_account", methods=["POST"])
 def admin_lock_account():
-    user = utils.get_user(request.cookies)
-
     # If the user isn't logged in or an administrator, return Unauthorised, 401
-    if user is None or not user.administrator:
+    if g.user is None or not g.user.administrator:
         return jsonify({
             "success": False,
             "message": "Unauthorised"
@@ -218,7 +214,7 @@ def admin_lock_account():
         }), 404
 
     # Check the user isn't locking themselves
-    if request_user.user_id == user.user_id:
+    if request_user.user_id == g.user.user_id:
         return jsonify({
             "success": False,
             "message": "Cannot lock yourself"
@@ -238,10 +234,8 @@ def admin_lock_account():
 
 @api.route("/delete_account", methods=["POST"])
 def admin_delete_account():
-    user = utils.get_user(request.cookies)
-
     # If the user isn't logged in or an administrator, return Unauthorised, 401
-    if user is None or not user.administrator:
+    if g.user is None or not g.user.administrator:
         return jsonify({
             "success": False,
             "message": "Unauthorised"
@@ -276,7 +270,7 @@ def admin_delete_account():
         }), 404
 
     # Check the user isn't deleting themselves
-    if request_user.user_id == user.user_id:
+    if request_user.user_id == g.user.user_id:
         return jsonify({
             "success": False,
             "message": "Cannot lock yourself"
@@ -301,14 +295,10 @@ def admin_delete_account():
     }), 200
 
 
-# The API endpoint for revoking keys is used for the administrator control panel
-# This endpoint is NOT used when a user navigates to /revoke_key
-@api.route("/revoke_key", methods=["POST"])
-def admin_revoke_key():
-    user = utils.get_user(request.cookies)
-
+@api.route("/reset_otp", methods=["POST"])
+def admin_reset_otp():
     # If the user isn't logged in or an administrator, return Unauthorised, 401
-    if user is None or not user.administrator:
+    if g.user is None or not g.user.administrator:
         return jsonify({
             "success": False,
             "message": "Unauthorised"
@@ -321,39 +311,32 @@ def admin_revoke_key():
             "message": "Request must be JSON"
         }), 400
     
-    # Check whether the request includes key_id parameter
+    # Check whether the request includes user_id parameter
     request_data = request.get_json()
 
-    key_id = request_data.get("key_id")
-    if key_id is None or not isinstance(key_id, int):
-        # key_id is not the correct type, return Bad Request 400
+    user_id = request_data.get("user_id")
+    if user_id is None or not isinstance(user_id, int):
+        # user_id is not the correct type, return Bad Request 400
         return jsonify({
             "success": False,
-            "message": "Invalid parameter key_id"
+            "message": "Invalid parameter user_id"
         }), 400
-
-    # If everything is good so far, we can then proceed
-    request_key = KeyEntry.query.filter(KeyEntry.key_id == key_id).first()
-
-    # Check whether this key exists
-    if request_key is None:
-        return jsonify({
-            "success": False,
-            "message": "Key does not exist"
-        }), 404
     
-    key_owner = request_key.get_key_owner()
+    # If everything is good so far, we can then proceed
+    request_user = User.query.filter(User.user_id == user_id).first()
 
-    # Check the user isn't another administrator
-    # TODO: Should there be another administraotr role that has ultimate power?
-    if key_owner.administrator and key_owner.user_id != user.user_id:
+    # Check whether this user exists
+    if request_user is None:
         return jsonify({
             "success": False,
-            "message": "Cannot delete an administrator's keys"
-        }), 400
+            "message": "User does not exist"
+        }), 404
 
-    # Delete the key
-    db.session.delete(request_key)
+    # Reset TOTP
+    request_user.reset_totp()
+
+    # Also set cookie_auth_expiry to ensure user is logged out
+    request_user.cookie_auth_expiry = datetime.datetime.fromtimestamp(0)
 
     db.session.commit()
 

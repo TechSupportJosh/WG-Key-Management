@@ -73,6 +73,14 @@
         <button type="submit" class="btn btn-primary mt-2">Submit Changes</button>
       </form>
 
+      <h2 class="mt-4">Other Functions</h2>
+      <div class="row">
+        <div class="col-4">
+          <p><strong>Reset OTP for user</strong><br>
+          This will require the user to re-setup their OTP secret. This will log the user out.</p>
+          <button class="btn btn-primary w-100" id="resetOTP" data-user-id="{{user.user_id}}">Reset OTP</button>
+        </div>
+      </div>
       <h2 class="mt-4">User's Public Keys</h2>
 
       {% if not keys|length %}
@@ -138,6 +146,36 @@
           }
         });
       }
+      
+      const resetOTPButton = document.getElementById("resetOTP");
+      resetOTPButton.addEventListener("click", function ()
+      {
+        // Retrieve key ID from button
+        const userId = parseInt(resetOTPButton.getAttribute("data-user-id"));
+
+        // Firstly add a prompt to check they definitely want to delete this key
+        if(!confirm("Are you sure you want to reset this user's OTP? This will log the user out."))
+          return;
+
+        // Send request
+        postData("/api/reset_otp", {
+          "user_id": userId
+        }).then(response => {
+          if(response.success)
+          {
+            // Update button display
+            resetOTPButton.innerText = "OTP Reset Successfully";
+            resetOTPButton.classList.add("btn-success");
+            resetOTPButton.classList.remove("btn-primary");
+            resetOTPButton.setAttribute("disabled", "disabled");
+          }
+          else
+          {
+            // TODO: Add proper display of erroring
+            console.log("Failed to reset OTP.");
+          }
+        });
+      })
 
       async function postData(url = "", data = {}) {
         // Default options are marked with *

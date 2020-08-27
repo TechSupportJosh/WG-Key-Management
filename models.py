@@ -71,12 +71,8 @@ class User(db.Model):
         # This ensures that a user that has never been logged into before can be logged in using a cookie_auth of ""
         self.cookie_auth_expiry = datetime.datetime.fromtimestamp(0)
 
-        # Also initialise the OTP secret for the user
-        self.is_otp_setup = False
-        self.otp_secret = base64.b32encode(os.urandom(10)).decode('utf-8')
-        self.otp_attempts = 0
-        # Initialise it with a random auth string, to prevent someone accessing the page with an empty auth string
-        self.otp_attempt_auth = secrets.token_urlsafe(32)
+        # Setup TOTP
+        self.reset_totp()
     
     def get_totp_uri(self):
         return "otpauth://totp/{otp_issuer}:{unique_id}?secret={otp_secret}&issuer={otp_issuer}".format(
@@ -91,6 +87,16 @@ class User(db.Model):
     def get_formatted_otp_token(self):
         return "  ".join([self.otp_secret[i:i+4] for i in range(0, len(self.otp_secret), 4)])
     
+    def reset_totp(self):
+        """This function resets the TOTP for this user, creating a new secret and resetting attempts.
+        This does not commit anything to the databsae and therefore db.session.update() must be called."""
+        # Also initialise the OTP secret for the user
+        self.is_otp_setup = False
+        self.otp_secret = base64.b32encode(os.urandom(10)).decode('utf-8')
+        self.otp_attempts = 0
+        # Initialise it with a random auth string, to prevent someone accessing the page with an empty auth string
+        self.otp_attempt_auth = secrets.token_urlsafe(32)
+
 class KeyEntry(db.Model):
     __tablename__ = "keys"
     __table_args__ = {'sqlite_autoincrement': True}
